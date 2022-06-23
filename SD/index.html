@@ -204,9 +204,14 @@
           <input type="number" id="co2interval" name="co2interval" placeholder="e.g. 180" required>
         </div>
         <div class="formrow">
-          <label for="lograte">Logging rate [sec]:</label>
-          <input type="number" name="lograte" id="lograte" placeholder="e.g. 20" required>
+          <label for="co2lograte">CO2 Logging rate [sec]:</label>
+          <input type="number" name="co2lograte" id="co2lograte" placeholder="e.g. 20" required>
         </div>
+        <div class="formrow">
+          <label for="soillograte">Soil Logging rate [sec]:</label>
+          <input type="number" name="soillograte" id="soillograte" placeholder="e.g. 20" required>
+        </div>
+
         <fieldset>
           <legend>Durations</legend>
           <div class="formrow">
@@ -247,17 +252,18 @@
 <script>
   // Populates list of files.
   /* beautify preserve:start */
-  var files = [ %filelist% ]
-  var sizes = [ %sizelist% ]
+  //var files = [ %filelist% ]
+  //var sizes = [ %sizelist% ]
   /* beautify preserve:end */
-  //var files = ["file1", "file2", "file3", ] // for debugging
-  //var filesizes = [25.6, 2487.6, 0.57, ] // for debugging
+
+  var files = ["file1", "file2", "file3", ] // for debugging
+  var filesizes = [25.6, 2487.6, 0.57, ] // for debugging
 
   let ul = document.getElementById("filelist")
   files.forEach((filename, i) => {
     let size = filesizes[i]
     let li = document.createElement("li");
-    li.innerHTML = `<a href="${filename}" download>${filename} \u2B73 </a><span>${size} Kb</span>`
+    li.innerHTML = `<a href="${filename}" download="${filename}">${filename} \u2B73 </a><span>${size} Kb</span>`
     ul.append(li);
   })
 </script>
@@ -265,7 +271,8 @@
 <script>
   // Prefills form fields with loaded values.
   document.getElementById("co2interval").value = "%co2interval%"
-  document.getElementById("lograte").value = "%lograte%"
+  document.getElementById("co2lograte").value = "%co2lograte%"
+  document.getElementById("soillograte").value = "%soillograte%"
   document.getElementById("warmupduration").value = "%warmupduration%"
   document.getElementById("premixduration").value = "%premixduration%"
   document.getElementById("valvesclosedduration").value = "%valvesclosedduration%"
