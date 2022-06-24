@@ -7,22 +7,22 @@
 #include <SPI.h>
 #include <chrono>
 #include <iomanip>
+#include <iostream>
 #include <mbcontroller.h>
 #include <sstream>
 #include <string>
-#include <iostream>
 #include <sys/time.h>
 extern "C" {
-  #include "bootloader_random.h"
+#include "bootloader_random.h"
 }
-#include <rom/rtc.h>
-#include <json11.hpp>
 #include <Preferences.h>
-/* 
+#include <json11.hpp>
+#include <rom/rtc.h>
+/*
  * Note about the Preferences library:
- * It uses the non-volatile storage partition to store the preferences, which can become full.
- * To erase it use:
- * 
+ * It uses the non-volatile storage partition to store the preferences, which
+ * can become full. To erase it use:
+ *
  * #include <nvs_flash.h>
  * void setup() {
  *  nvs_flash_erase(); // Erase NVS partition
@@ -83,7 +83,8 @@ std::string timestamp() {
   time_t t;
   time(&t);
   strftime(buf, 128, "%FT%Hh%Mm%Ss,", gmtime(&t));
-  // A little bodge here to get sub second timestamps as strftime doesn't support that
+  // A little bodge here to get sub second timestamps as strftime doesn't
+  // support that
   std::string ss = std::string{buf};
   std::ostringstream mil;
   mil << millis();
@@ -95,13 +96,14 @@ std::string timestamp() {
 const std::string delim = ","; // Csv column delimiter
 const std::string sep = ".";   // Decimal seperator
 const auto header = "time" + delim + "variable" + delim + "value";
-std::stringstream& fmt_meas(std::string time, std::stringstream& ss, std::string variable,
-                            std::string value) {
+std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
+                            std::string variable, std::string value) {
   ss << time << delim << variable << delim << value << '\n';
   return ss;
 }
-std::stringstream& fmt_meas(std::string time, std::stringstream& ss, std::string variable,
-                            float value, int precision = 8) {
+std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
+                            std::string variable, float value,
+                            int precision = 8) {
   ss << time << delim << variable << delim << std::setprecision(precision)
      << value << '\n';
   return ss;
@@ -130,26 +132,27 @@ inline bool log_fail(const char* msg, bool val, bool freeze = true) {
 void writeConfig() {
   // Create new file for measurements
   std::string filename = CONF_FILE;
-  
+
   log_i("Creating file %s", filename.c_str());
 
   SD.remove(filename.c_str());
   auto file = SD.open(filename.c_str(), FILE_WRITE);
-  if (!file) log_fail("SD Card failed to open!", false, true); // If we don't have file we stop
+  if (!file)
+    log_fail("SD Card failed to open!", false,
+             true); // If we don't have file we stop
 
-  json11::Json configuration = json11::Json::object {
-    { "version", (int)1},
-    { "latitude", config.latitude },
-    { "longitude", config.longitude },
-    { "warmup_time", config.warmup_time },
-    { "premix_time", config.premix_time },
-    { "measurement_time", config.measurement_time },
-    { "postmix_time", config.postmix_time },
-    { "co2_meas_interval", config.co2_meas_interval },
-    { "air_meas_interval", config.air_meas_interval },
-    { "soil_meas_interval", config.soil_meas_interval },
-    { "sleep_duration", config.sleep_duration }
-  };
+  json11::Json configuration =
+      json11::Json::object{{"version", (int)1},
+                           {"latitude", config.latitude},
+                           {"longitude", config.longitude},
+                           {"warmup_time", config.warmup_time},
+                           {"premix_time", config.premix_time},
+                           {"measurement_time", config.measurement_time},
+                           {"postmix_time", config.postmix_time},
+                           {"co2_meas_interval", config.co2_meas_interval},
+                           {"air_meas_interval", config.air_meas_interval},
+                           {"soil_meas_interval", config.soil_meas_interval},
+                           {"sleep_duration", config.sleep_duration}};
   std::string configuration_str = configuration.dump();
   file.print(configuration_str.c_str());
   file.close();
@@ -164,7 +167,9 @@ void readConfig() {
   }
 
   auto file = SD.open(filename.c_str(), FILE_READ);
-  if (!file) log_fail("SD Card failed to open!", false, true); // If we don't have file we stop
+  if (!file)
+    log_fail("SD Card failed to open!", false,
+             true); // If we don't have file we stop
   std::string buf = "";
   while (file.available()) {
     buf += file.read();
@@ -209,9 +214,9 @@ void measure_co2_task(void* parameter) {
     }
 
     // Log data for debugging
-    //log_d("%s", ss.str().c_str());
+    // log_d("%s", ss.str().c_str());
 
-    while(xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
+    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
@@ -246,9 +251,9 @@ void measure_air_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Log data for debugging
-    //log_d("%s", ss.str().c_str());
+    // log_d("%s", ss.str().c_str());
 
-    while(xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
+    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
@@ -273,15 +278,16 @@ void measure_soil_task(void* parameter) {
     std::stringstream ss{""};
     std::string time = timestamp();
 
-    fmt_meas(time, ss, "soil_temperature", 0); // Replace 0 with actual soil measurement
+    fmt_meas(time, ss, "soil_temperature",
+             0); // Replace 0 with actual soil measurement
 
     // Log data for debugging
-    //log_d("%s", ss.str().c_str());
+    // log_d("%s", ss.str().c_str());
 
-    while(xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
+    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
-    
+
     // Save data to file
     auto file = SD.open(logfilename.c_str(), FILE_APPEND);
     if (!file) {
@@ -305,9 +311,7 @@ void enterWarmup() {
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10, &measure_soil, 1);
 }
 
-void enterPremix() {
-  digitalWrite(PIN_FAN, HIGH);
-}
+void enterPremix() { digitalWrite(PIN_FAN, HIGH); }
 
 void enterValvesClosed() {
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
@@ -330,7 +334,7 @@ void enterPostmix() {
 }
 
 void enterSleep(uint64_t sleepTime) {
-  log_i("%s SUCCESS", "Entering sleep state...");
+  log_i("Entering sleep state...");
   vTaskDelete(measure_co2);
   vTaskDelete(measure_air);
   vTaskDelete(measure_soil);
@@ -340,9 +344,9 @@ void enterSleep(uint64_t sleepTime) {
   esp_deep_sleep((uint32_t)sleepTime * 1000000);
 }
 
-void setup() {  
+void setup() {
   // Prepare GPIO
-  /* 
+  /*
    * NOTE:
    * During sleep the pins might go into undefined states
    * This can be fixed by setting the RTC function of the pins
@@ -355,7 +359,7 @@ void setup() {
   pinMode(PIN_VALVE_1_REV, OUTPUT);
   pinMode(PIN_VALVE_2_FWD, OUTPUT);
   pinMode(PIN_VALVE_2_REV, OUTPUT);
-  
+
   digitalWrite(PIN_PWR_EN, HIGH);
   digitalWrite(PIN_FAN, LOW);
   digitalWrite(PIN_STATUS_LED, LOW);
@@ -386,10 +390,12 @@ void setup() {
     log_i("%s SUCCESS", "Starting from POR...");
 
     preferences.begin("hardinfo");
-    if (preferences.getType("serial_number") != 10) {
-      serial_number = std::string(preferences.getString("serial_number").c_str());
+    if (preferences.getType("serial_number") != PT_INVALID) {
+      serial_number =
+          std::string(preferences.getString("serial_number").c_str());
       if (serial_number == "0") {
-        log_fail("Serial number is 0, please provide valid serial number:", false, false);
+        log_fail("Serial number is 0, please provide valid serial number:",
+                 false, false);
         bool has_valid_serial = false;
         std::string ss = "";
         while (!has_valid_serial) {
@@ -424,15 +430,21 @@ void setup() {
 
   // Set up I2C peripherals
   log_fail("I2C initialization...      ", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 Initialization... ", bme280_1.begin(0x76, &Wire), true); // set back to true, temporarily set to false for testing
+  log_fail("BME280 Initialization... ", bme280_1.begin(0x76, &Wire),
+           true); // set back to true, temporarily set to false for testing
 
-  vTaskDelay(100/portTICK_PERIOD_MS);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // Create new file for measurements
-  logfilename = LOGFILE_PREFIX + serial_number + LOGFILE_POSTFIX; //The UID is not unique during startup, we can change that by either having the RF subsystem on or using uid(6, true);
+  logfilename = LOGFILE_PREFIX + serial_number +
+                LOGFILE_POSTFIX; // The UID is not unique during startup, we can
+                                 // change that by either having the RF
+                                 // subsystem on or using uid(6, true);
   log_i("Creating file %s", logfilename.c_str());
   auto file = SD.open(logfilename.c_str(), FILE_WRITE);
-  if (!file) log_fail("SD Card failed to open!", false, true); // If we don't have a file we stop
+  if (!file)
+    log_fail("SD Card failed to open!", false,
+             true); // If we don't have a file we stop
   file.println(header.c_str());
   file.close();
 
@@ -447,17 +459,13 @@ void setup() {
   enterSleep(config.sleep_duration);
 }
 
-void loop() {
-  log_fail("Why are we in the loop?", false, true);
-}
-
+void loop() { log_fail("Why are we in the loop?", false, true); }
 
 /*********************************************************************/
 /***************************** OLD CODE ******************************/
 /*********************************************************************/
 
-
-//Sets internal clock to use time from GPS
+// Sets internal clock to use time from GPS
 /*
 void setTimeFromGPS() {
   struct tm time{};
@@ -483,7 +491,7 @@ void oldSetup() {
   log_i("Waiting for sensors to turn on...");
   vTaskDelay(3000 / portTICK_PERIOD_MS);
   log_i("Initializing sensors...");
-  
+
   // Set up serial ports for CO2 sensors
   Serial1.begin(115200, SERIAL_8N2, PIN_UART_RX, PIN_UART_TX);  // Sensor bank 1
   //Serial2.begin(115200, SERIAL_8N2, U2_RX, U2_TX);  // Sensor bank 2
@@ -506,13 +514,15 @@ void oldSetup() {
 
   // Set up SD card
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI), !CONTINUE_WITHOUT_SD);
+  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI),
+!CONTINUE_WITHOUT_SD);
 
   // Create new file for measurements
-  filename = LOGFILE_PREFIX + uid() + LOGFILE_POSTFIX; //The UID is not unique during startup, we can change that by either having the RF subsystem on or using uid(6, true);
-  log_i("Creating file %s", filename.c_str());
-  auto file = SD.open(filename.c_str(), FILE_WRITE);
-  if (!file) log_fail("SD Card failed to open!", false, true); // If we don't have file we stop
+  filename = LOGFILE_PREFIX + uid() + LOGFILE_POSTFIX; //The UID is not unique
+during startup, we can change that by either having the RF subsystem on or using
+uid(6, true); log_i("Creating file %s", filename.c_str()); auto file =
+SD.open(filename.c_str(), FILE_WRITE); if (!file) log_fail("SD Card failed to
+open!", false, true); // If we don't have file we stop
   file.println(header.c_str());
   file.close();
   digitalWrite(PIN_STATUS_LED, HIGH);
@@ -521,7 +531,8 @@ void oldSetup() {
 
 /*
 void oldLoop() {
-  if (loopTimer > millis()) loopTimer = millis(); // If millis loops around we reset (happens after 49.7 days)
+  if (loopTimer > millis()) loopTimer = millis(); // If millis loops around we
+reset (happens after 49.7 days)
 
   if (millis() - loopTimer >= 1000) {
     loopTimer = millis();

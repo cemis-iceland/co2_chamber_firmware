@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mælibúr configuration</title>
+
+  <style>
+    body {
+      font-family: monospace;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      margin-top: 5rem;
+    }
+
+    header {
+      position: absolute;
+      top: 1rem;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+      font-size: 100%;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    fieldset,
+    .fieldset {
+      display: flex;
+      flex-direction: column;
+      row-gap: 8px;
+      column-gap: 8px;
+    }
+
+    .formrow {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      column-gap: 8px;
+      align-items: center;
+      flex-grow: 1;
+    }
+
+    button {
+      padding: 8px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      display: block;
+    }
+
+    input {
+      flex-shrink: 1;
+      min-width: 1cm;
+      height: 1.5rem;
+      border-color: gray;
+      border-width: 1px;
+      border-radius: 2px;
+    }
+
+    input:invalid {
+      border-right-color: red;
+      border-right-width: 4px;
+    }
+
+    section {
+      max-width: 480px;
+      min-width: 250px;
+      flex-grow: 1;
+      margin-bottom: 16px;
+    }
+
+    .graphicline {
+      width: auto;
+      height: 2rem;
+      border: solid grey 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      box-sizing: border-box;
+      border-collapse: collapse;
+
+    }
+
+    .graphicline:not(:first-of-type) {
+      border-top: none;
+    }
+
+    ul {
+      margin: 0;
+      margin-bottom: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      row-gap: 8px;
+    }
+
+    ul li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    li a {
+      padding: 8px 0px;
+    }
+
+    dialog {
+      max-width: 300px;
+    }
+
+    button {
+      border: solid grey 1px;
+      border-radius: 3px;
+      padding: 12px;
+    }
+
+    .deletebtn {
+      color: #ee4444;
+    }
+
+    .deletebtn:visited {
+      color: #ee4444;
+    }
+
+    label {
+      width: max-content;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Data download -->
+  <header>
+    <h2> Mælibúr nr: <span id="serialnumber">%SERIAL_NUMBER%</span> </h2>
+  </header>
+  <section>
+    <fieldset>
+      <legend>Download data</legend>
+      <ul id="filelist">
+        <!-- Populated by javascript -->
+      </ul>
+      <a class="deletebtn" href="#" onclick="document.getElementById('deleteall').showModal();">
+        Delete all data</a>
+      <dialog id="deleteall">
+        <h2>Warning, ensure all data has been downloaded and backed up.</h2>
+        <p style="margin-bottom: 48px;">This will permanently erase all measurement data currently present on the sd
+          card of this chamber. This is
+          <strong>irreversible</strong>.</p>
+        <form method="dialog" style="display: flex; flex-direction: row; justify-content: space-between;">
+          <button style="width: 30%;">Cancel</button>
+          <a href="deleteall"><button type="button" style="background-color: red;">Delete all</button></a>
+        </form>
+      </dialog>
+
+    </fieldset>
+  </section>
+  <section>
+    <form autocomplete="off" action="start">
+      <fieldset>
+        <legend>Configure and start experiment</legend>
+        <div class="formrow">
+          <label for="locnotes">Notes: </label>
+          <textarea style="height: 4rem; resize: vertical; flex-grow: 1;" type="textarea" id="locnotes"
+            name="locnotes"></textarea>
+        </div>
+        <fieldset>
+          <legend>Location</legend>
+          <div
+            style="display:flex; flex-direction: row; justify-content: space-between; column-gap: 8px; flex-grow: 1;">
+            <div class="fieldset" style="flex-grow: 1; align-items: stretch;">
+              <div class="formrow">
+                <label for="lat">Lat: </label>
+                <input type="text" id="lat" name="lat" placeholder="e.g. 64.1369" required>
+              </div>
+              <div class="formrow">
+                <label for="lon">Lon: </label>
+                <input type="text" id="lon" name="lon" placeholder="e.g. -21.9452" required>
+              </div>
+            </div>
+            <button style="width: 1.6cm;" type="button"
+              onclick="navigator.geolocation.getCurrentPosition((loc)=>{document.getElementById('lat').value = loc.coords.latitude; document.getElementById('lon').value = loc.coords.longitude;})">Find</button>
+          </div>
+        </fieldset>
+
+        <div class="formrow" style="margin-top: 16px;">
+          <label for="co2interval">Measure every [min]:</label>
+          <input type="number" id="co2interval" name="co2interval" placeholder="e.g. 180" required>
+        </div>
+        <div class="formrow">
+          <label for="co2lograte">CO2 Logging rate [sec]:</label>
+          <input type="number" name="co2lograte" id="co2lograte" placeholder="e.g. 20" required>
+        </div>
+        <div class="formrow">
+          <label for="soillograte">Soil Logging rate [sec]:</label>
+          <input type="number" name="soillograte" id="soillograte" placeholder="e.g. 20" required>
+        </div>
+
+        <fieldset>
+          <legend>Durations</legend>
+          <div class="formrow">
+            <label for="warmupduration">Warmup [sec]:</label>
+            <input type="number" name="warmupduration" id="warmupduration" placeholder="e.g. 30" required>
+          </div>
+          <div class="formrow">
+            <label for="premixduration">Premix [min]:</label>
+            <input type="number" name="premixduration" id="premixduration" placeholder="e.g. 3" required>
+          </div>
+          <div class="formrow">
+            <label for="valvesclosedduration">Valves closed [min]:</label>
+            <input type="number" name="valvesclosedduration" id="valvesclosedduration" placeholder="e.g. 4" required>
+          </div>
+          <div class="formrow">
+            <label for="postmixduration">Postmix [min]:</label>
+            <input type="number" name="postmixduration" id="postmixduration" placeholder="e.g. 3" required>
+          </div>
+          <div style="width: 100%; display: flex; flex-direction: column;">
+            <div class="graphicline"><span>Warmup</span><span style="color: grey;">Sensors on</span><span></span></div>
+            <div class="graphicline" style="margin-left: 20%;"><span>Premix</span><span style="color: grey;">Fan
+                on</span><span>Postmix</span></div>
+            <div class=" graphicline" style="margin-left:40%; margin-right:20%; justify-content: space-around;">
+              <span>Valves closed</span></div>
+          </div>
+        </fieldset>
+
+        <button type="submit" onclick="document.getElementById('timestamp').value=Date.now();"
+          style="height: 2.5rem;">Save
+          and start
+          measuring</button>
+      </fieldset>
+      <!-- Hidden field that sets the búrs time -->
+      <input style="display:none;" type="number" name="timestamp" id="timestamp">
+    </form>
+  </section>
+</body>
+<script>
+  // Populates list of files.
+  /* beautify preserve:start */
+  //var files = [ %filelist% ]
+  //var sizes = [ %sizelist% ]
+  /* beautify preserve:end */
+
+  var files = ["file1", "file2", "file3", ] // for debugging
+  var filesizes = [25.6, 2487.6, 0.57, ] // for debugging
+
+  let ul = document.getElementById("filelist")
+  files.forEach((filename, i) => {
+    let size = filesizes[i]
+    let li = document.createElement("li");
+    li.innerHTML = `<a href="${filename}" download="${filename}">${filename} \u2B73 </a><span>${size} Kb</span>`
+    ul.append(li);
+  })
+</script>
+
+<script>
+  // Prefills form fields with loaded values.
+  document.getElementById("co2interval").value = "%co2interval%"
+  document.getElementById("co2lograte").value = "%co2lograte%"
+  document.getElementById("soillograte").value = "%soillograte%"
+  document.getElementById("warmupduration").value = "%warmupduration%"
+  document.getElementById("premixduration").value = "%premixduration%"
+  document.getElementById("valvesclosedduration").value = "%valvesclosedduration%"
+  document.getElementById("postmixduration").value = "%postmixduration%"
+</script>
+
+</html>
