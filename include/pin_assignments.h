@@ -8,8 +8,8 @@
 #define PIN_STATUS_LED 4
 #define PIN_FAN 5
 
-#define PIN_UART_TX 13
-#define PIN_UART_RX 14
+#define PIN_UART_TX 14
+#define PIN_UART_RX 13
 
 #define PIN_I2C_SDA 16
 #define PIN_I2C_SCL 17

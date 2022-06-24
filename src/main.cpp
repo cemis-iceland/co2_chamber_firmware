@@ -49,14 +49,14 @@ RTC_DATA_ATTR std::string logfilename = "temp.csv";
 struct Config {
   float latitude = 64.136978;
   float longitude = -21.945821;
-  int warmup_time = 300;
-  int premix_time = 180;
-  int measurement_time = 240;
-  int postmix_time = 180;
+  int warmup_time = 10; // 300
+  int premix_time = 10; // 180
+  int measurement_time = 10; // 240
+  int postmix_time = 10; // 180
   int co2_meas_interval = 2; // The interval at which the SCD30 takes measurements in seconds
   int air_meas_interval = 1; // The interval at which the BME280 takes measurements in seconds
-  int soil_meas_interval = 60; // The interval at which the soil temp and soil moist sensors take measurements in seconds
-  int sleep_duration = 60; //10 800; // The sleep duration in seconds
+  int soil_meas_interval = 6; // The interval at which the soil temp and soil moist sensors take measurements in seconds // Default 60s
+  int sleep_duration = 10; //10 800; // The sleep duration in seconds
 } config;
 
 // Sensor instances
@@ -67,7 +67,7 @@ auto bme_temp_1 = bme280_1.getTemperatureSensor();
 auto bme_pres_1 = bme280_1.getPressureSensor();
 auto bme_hume_1 = bme280_1.getHumiditySensor();
 
-#define CONF_FILE "chamber_conf.json"
+#define CONF_FILE "/chamber_conf.json"
 #define LOGFILE_PREFIX "/measurements_"
 #define LOGFILE_POSTFIX ".csv"
 
@@ -115,12 +115,13 @@ inline bool log_fail(const char* msg, bool val, bool freeze = true) {
   } else {
     log_e("%s FAILURE                <--- WARNING", msg);
     if (freeze) {
-      while (true) {
+      for (int i = 0; i < 20; i++) {
         digitalWrite(PIN_STATUS_LED, HIGH);
         delay(50);
         digitalWrite(PIN_STATUS_LED, LOW);
         delay(200);
       }
+      ESP.restart();
     }
   }
   return val;
@@ -299,9 +300,9 @@ void measure_soil_task(void* parameter) {
 
 void enterWarmup() {
   SD_mutex = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 1, &measure_co2, 1);
-  xTaskCreatePinnedToCore(measure_air_task, "measure_air", 16384, NULL, 1, &measure_air, 1);
-  xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 1, &measure_soil, 1);
+  xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10, &measure_co2, 1);
+  xTaskCreatePinnedToCore(measure_air_task, "measure_air", 16384, NULL, 10, &measure_air, 1);
+  xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10, &measure_soil, 1);
 }
 
 void enterPremix() {
@@ -310,21 +311,21 @@ void enterPremix() {
 
 void enterValvesClosed() {
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
-  vTaskDelay(25 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
-  vTaskDelay(25 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, LOW);
 }
 
 void enterPostmix() {
   digitalWrite(PIN_VALVE_1_REV, HIGH);
-  vTaskDelay(25 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, LOW);
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
-  vTaskDelay(25 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, LOW);
 }
 
@@ -336,7 +337,7 @@ void enterSleep(uint64_t sleepTime) {
   resetReasonDeepSleep = true;
   digitalWrite(PIN_PWR_EN, LOW);
   //esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the crystal oscillator
-  esp_deep_sleep(sleepTime);
+  esp_deep_sleep((uint32_t)sleepTime * 1000000);
 }
 
 void setup() {  
@@ -363,17 +364,23 @@ void setup() {
   digitalWrite(PIN_VALVE_2_FWD, LOW);
   digitalWrite(PIN_VALVE_2_REV, LOW);
 
+  vTaskDelay(100 / portTICK_PERIOD_MS); // The SD card has issues, maybe it's too fast?
+
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   Serial.begin(115200);
 
   // Set up SD card
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
   log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI), !CONTINUE_WITHOUT_SD);
+  Serial.println(resetReasonDeepSleep);
 
   if (resetReasonDeepSleep) {
     // Run deep sleep wakeup code (website, write config to SD, etc)
     log_i("%s SUCCESS", "Starting from deep sleep...");
     readConfig();
+    preferences.begin("hardinfo");
+    serial_number = std::string(preferences.getString("serial_number").c_str());
+    preferences.end();
   } else {
     // Run POR startup code (read config from SD, check battery health)
     log_i("%s SUCCESS", "Starting from POR...");
@@ -428,13 +435,6 @@ void setup() {
   if (!file) log_fail("SD Card failed to open!", false, true); // If we don't have a file we stop
   file.println(header.c_str());
   file.close();
-
-  /*
-  // Used for testing sleep state, does it keep time during sleep??
-  digitalWrite(PIN_PWR_EN, HIGH);
-  log_i("%s", timestamp());
-  vTaskDelay(30000 / portTICK_PERIOD_MS);
-  */
 
   enterWarmup();
   vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
