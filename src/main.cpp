@@ -17,6 +17,8 @@ extern "C" {
 }
 #include <Preferences.h>
 #include <json11.hpp>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include <rom/rtc.h>
 /*
  * Note about the Preferences library:
@@ -61,11 +63,13 @@ struct Config {
 
 // Sensor instances
 SCD30_MB scd30;
+OneWire oneWire(PIN_TEMP_SENSOR);
+DallasTemperature soil_temp(&oneWire);
 
-Adafruit_BME280 bme280_1{};
-auto bme_temp_1 = bme280_1.getTemperatureSensor();
-auto bme_pres_1 = bme280_1.getPressureSensor();
-auto bme_hume_1 = bme280_1.getHumiditySensor();
+Adafruit_BME280 bme280{};
+auto bme_temp = bme280.getTemperatureSensor();
+auto bme_pres = bme280.getPressureSensor();
+auto bme_hume = bme280.getHumiditySensor();
 
 #define CONF_FILE "/chamber_conf.json"
 #define LOGFILE_PREFIX "/measurements_"
@@ -243,9 +247,9 @@ void measure_air_task(void* parameter) {
 
     // Read BME280 environmental data
     sensors_event_t temp_1, hume_1, pres_1;
-    bme_temp_1->getEvent(&temp_1);
-    bme_hume_1->getEvent(&hume_1);
-    bme_pres_1->getEvent(&pres_1);
+    bme_temp->getEvent(&temp_1);
+    bme_hume->getEvent(&hume_1);
+    bme_pres->getEvent(&pres_1);
     fmt_meas(time, ss, "air_temperature", temp_1.temperature);
     fmt_meas(time, ss, "air_humidity", hume_1.relative_humidity);
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
@@ -277,9 +281,13 @@ void measure_soil_task(void* parameter) {
   while (true) {
     std::stringstream ss{""};
     std::string time = timestamp();
+    soil_temp.requestTemperatures();
+    float temperature = soil_temp.getTempCByIndex(0);
+    int soil_moisture = analogReadMilliVolts(PIN_MOIST_SENSOR);
 
     fmt_meas(time, ss, "soil_temperature",
-             0); // Replace 0 with actual soil measurement
+             temperature, 5);
+    fmt_meas(time, ss, "soil_moisture", soil_moisture);
 
     // Log data for debugging
     // log_d("%s", ss.str().c_str());
@@ -435,9 +443,12 @@ void setup() {
 
   // Set up I2C peripherals
   log_fail("I2C initialization...      ", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 Initialization... ", bme280_1.begin(0x76, &Wire),
+  log_fail("BME280 Initialization... ", bme280.begin(0x76, &Wire),
            true); // set back to true, temporarily set to false for testing
 
+  // Set up DS18B20 temperature sensor
+  soil_temp.begin();
+  
   vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // Create new file for measurements
@@ -558,9 +569,9 @@ reset (happens after 49.7 days)
 
     // Read BME280 environmental data
     sensors_event_t temp_1, hume_1, pres_1;
-    bme_temp_1->getEvent(&temp_1);
-    bme_hume_1->getEvent(&hume_1);
-    bme_pres_1->getEvent(&pres_1);
+    bme_temp->getEvent(&temp_1);
+    bme_hume->getEvent(&hume_1);
+    bme_pres->getEvent(&pres_1);
     fmt_meas(time, ss, "bme280_1_temperature", temp_1.temperature);
     fmt_meas(time, ss, "bme280_1_humidity", hume_1.relative_humidity);
     fmt_meas(time, ss, "bme280_1_pressure", pres_1.pressure, 9);
