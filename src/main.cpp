@@ -20,6 +20,12 @@ extern "C" {
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <rom/rtc.h>
+#include <DNSServer.h>
+#ifdef ESP32
+#include <AsyncTCP.h>
+#include <WiFi.h>
+#endif
+#include "ESPAsyncWebServer.h"
 /*
  * Note about the Preferences library:
  * It uses the non-volatile storage partition to store the preferences, which
@@ -46,19 +52,18 @@ extern "C" {
 #define CONTINUE_WITHOUT_SD false
 
 RTC_DATA_ATTR bool resetReasonDeepSleep = false;
-RTC_DATA_ATTR std::string logfilename = "temp.csv";
 
 struct Config {
   float latitude = 64.136978;
   float longitude = -21.945821;
-  int warmup_time = 10; // 300
-  int premix_time = 10; // 180
-  int measurement_time = 10; // 240
-  int postmix_time = 10; // 180
+  int warmup_time = 300; // 300
+  int premix_time = 180; // 180
+  int measurement_time = 240; // 240
+  int postmix_time = 180; // 180
   int co2_meas_interval = 2; // The interval at which the SCD30 takes measurements in seconds
-  int air_meas_interval = 1; // The interval at which the BME280 takes measurements in seconds
   int soil_meas_interval = 6; // The interval at which the soil temp and soil moist sensors take measurements in seconds // Default 60s
-  int sleep_duration = 5; //10 800; // The sleep duration in seconds
+  int sleep_duration = 180; //10 800; // The sleep duration in minutes
+  std::string logfilename = "temp.csv";
 } config;
 
 // Sensor instances
@@ -72,28 +77,109 @@ auto bme_pres = bme280.getPressureSensor();
 auto bme_hume = bme280.getHumiditySensor();
 
 #define CONF_FILE "/chamber_conf.json"
-#define LOGFILE_PREFIX "/measurements_"
+#define LOGFILE_PREFIX "/data/measurements_"
 #define LOGFILE_POSTFIX ".csv"
 
 unsigned long loopTimer = 0;
 
 Preferences preferences;
 
-std::string serial_number = "0";
+std::string serial_number = "0-0";
+
+DNSServer dnsServer;
+AsyncWebServer server(80);
+
+const char data_dir[] = "/data";
+
+std::string location_notes;
+
+// Redirect all requests to the ip of the ESP (necessary for whitelist rules).
+class CaptiveRequestHandler : public AsyncWebHandler {
+ public:
+  CaptiveRequestHandler() {}
+  virtual ~CaptiveRequestHandler() {}
+
+  bool canHandle(AsyncWebServerRequest *request) {
+    // Only redirect if the requested host doesn't match
+    bool res = request->host() != WiFi.softAPIP().toString();
+    log_d("Host: %s", request->host().c_str());
+    log_d("Redirect: %s", res ? "Yes" : "No");
+    return res;
+  }
+
+  void handleRequest(AsyncWebServerRequest *request) {
+    request->redirect("http://" + WiFi.softAPIP().toString() + "/");
+  }
+};
+
+// Return a comma seperated list of data files on the sd card
+String index_filelist(bool size = false) {
+  auto root = SD.open(data_dir);
+  auto ss = std::stringstream{};
+  while (true) {
+    auto file = root.openNextFile();
+    if (!file) break;  // No more files
+    log_d("File: %s", file.name());
+    if (size) {
+      ss << (float)file.size() << ", ";
+    } else {
+      ss << '"' << file.name() << "\", ";
+    }
+    file.close();
+  }
+  root.close();
+  return String(ss.str().c_str());
+}
+
+// Replace %PLACEHOLDERS% in index.html with real values
+String index_template_processor(const String &var) {
+  log_d("index_template called with: %s", var.c_str());
+  if (var == "SERIAL_NUMBER") {
+    return serial_number.c_str();
+  } else if (var == "filelist") {
+    return index_filelist();
+  } else if (var == "sizelist") {
+    return index_filelist(true);
+  } else if (var == "co2interval") {
+    return std::to_string(config.sleep_duration).c_str();
+  } else if (var == "co2lograte") {
+    return std::to_string(config.co2_meas_interval).c_str();
+  } else if (var == "soillograte") {
+    return std::to_string(config.soil_meas_interval).c_str();
+  } else if (var == "warmupduration") {
+    return std::to_string(config.warmup_time).c_str();
+  } else if (var == "premixduration") {
+    return std::to_string(config.premix_time).c_str();
+  } else if (var == "valvesclosedduration") {
+    return std::to_string(config.measurement_time).c_str();
+  } else if (var == "postmixduration") {
+    return std::to_string(config.postmix_time).c_str();
+  }
+  return var;
+}
 
 // Create a string timestamp from the internal clock
 std::string timestamp() {
   char buf[128]{0};
   time_t t;
   time(&t);
-  strftime(buf, 128, "%FT%Hh%Mm%Ss,", gmtime(&t));
-  // A little bodge here to get sub second timestamps as strftime doesn't
-  // support that
+  strftime(buf, 128, "%FT%Hh%Mm%Ss", gmtime(&t));
   std::string ss = std::string{buf};
-  std::ostringstream mil;
-  mil << millis();
-  ss = ss + mil.str();
   return ss;
+}
+
+// Set time from the time submitted with the web form
+void setTimeFromWeb(String time_string) {
+  log_i("Time: %s", time_string.c_str());
+  time_t rawtime = (time_t)(time_string.toDouble() / 1000); // Convert to seconds / 1000
+  log_i("More time: %d", rawtime);
+  struct timeval tv;
+  struct timezone tz;
+  tv.tv_sec = rawtime;
+  tv.tv_usec = 0;
+  tz.tz_minuteswest = 0;
+  tz.tz_dsttime = 0;
+  settimeofday(&tv, &tz);
 }
 
 // Create strings for logging data
@@ -154,9 +240,9 @@ void writeConfig() {
                            {"measurement_time", config.measurement_time},
                            {"postmix_time", config.postmix_time},
                            {"co2_meas_interval", config.co2_meas_interval},
-                           {"air_meas_interval", config.air_meas_interval},
                            {"soil_meas_interval", config.soil_meas_interval},
-                           {"sleep_duration", config.sleep_duration}};
+                           {"sleep_duration", config.sleep_duration},
+                           {"log_file_name", config.logfilename}};
   std::string configuration_str = configuration.dump();
   file.print(configuration_str.c_str());
   file.close();
@@ -189,14 +275,13 @@ void readConfig() {
     config.measurement_time = configuration["measurement_time"].int_value();
     config.postmix_time = configuration["postmix_time"].int_value();
     config.co2_meas_interval = configuration["co2_meas_interval"].int_value();
-    config.air_meas_interval = configuration["air_meas_interval"].int_value();
     config.soil_meas_interval = configuration["soil_meas_interval"].int_value();
     config.sleep_duration = configuration["sleep_duration"].int_value();
+    config.logfilename = configuration["log_file_name"].string_value();
   }
 }
 
 static TaskHandle_t measure_co2 = NULL;
-static TaskHandle_t measure_air = NULL;
 static TaskHandle_t measure_soil = NULL;
 
 static SemaphoreHandle_t SD_mutex;
@@ -208,7 +293,11 @@ void measure_co2_task(void* parameter) {
 
     // Read sensor values from SCD30
     bool scdReady = false;
-    scd30.data_ready(&scdReady);
+    // Wait until SCD30 is ready
+    while (!scdReady) {
+      scd30.data_ready(&scdReady);
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
     if (scdReady) {
       SCD30_Measurement scd30_meas;
       scd30.read_measurement(&scd30_meas);
@@ -217,36 +306,9 @@ void measure_co2_task(void* parameter) {
       fmt_meas(time, ss, "scd30_humidity", scd30_meas.humidity_percent);
     }
 
-    // Log data for debugging
-    // log_d("%s", ss.str().c_str());
-
-    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
-      vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-
-    // Save data to file
-    auto file = SD.open(logfilename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", logfilename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-
-    xSemaphoreGive(SD_mutex);
-    vTaskDelay(config.co2_meas_interval * 1000 / portTICK_PERIOD_MS);
-  }
-}
-
-void measure_air_task(void* parameter) {
-  while (true) {
-    std::stringstream ss{""};
-    std::string time = timestamp();
-
     // Read BME280 environmental data
     sensors_event_t temp_1, hume_1, pres_1;
+
     bme_temp->getEvent(&temp_1);
     bme_hume->getEvent(&hume_1);
     bme_pres->getEvent(&pres_1);
@@ -262,9 +324,9 @@ void measure_air_task(void* parameter) {
     }
 
     // Save data to file
-    auto file = SD.open(logfilename.c_str(), FILE_APPEND);
+    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
     if (!file) {
-      log_e("Failed to open file %s", logfilename.c_str());
+      log_e("Failed to open file %s", config.logfilename.c_str());
       digitalWrite(PIN_STATUS_LED, HIGH);
     } else {
       file.print(ss.str().c_str());
@@ -273,7 +335,7 @@ void measure_air_task(void* parameter) {
     file.close();
 
     xSemaphoreGive(SD_mutex);
-    vTaskDelay(config.air_meas_interval * 1000 / portTICK_PERIOD_MS);
+    vTaskDelay(config.co2_meas_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -283,7 +345,7 @@ void measure_soil_task(void* parameter) {
     std::string time = timestamp();
     soil_temp.requestTemperatures();
     float temperature = soil_temp.getTempCByIndex(0);
-    int soil_moisture = analogReadMilliVolts(PIN_MOIST_SENSOR);
+    int soil_moisture = analogRead(PIN_MOIST_SENSOR);
 
     fmt_meas(time, ss, "soil_temperature",
              temperature, 5);
@@ -297,9 +359,9 @@ void measure_soil_task(void* parameter) {
     }
 
     // Save data to file
-    auto file = SD.open(logfilename.c_str(), FILE_APPEND);
+    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
     if (!file) {
-      log_e("Failed to open file %s", logfilename.c_str());
+      log_e("Failed to open file %s", config.logfilename.c_str());
       digitalWrite(PIN_STATUS_LED, HIGH);
     } else {
       file.print(ss.str().c_str());
@@ -316,7 +378,6 @@ void enterWarmup() {
   log_i("Entering warmup");
   SD_mutex = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10, &measure_co2, 1);
-  xTaskCreatePinnedToCore(measure_air_task, "measure_air", 16384, NULL, 10, &measure_air, 1);
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10, &measure_soil, 1);
 }
 
@@ -330,7 +391,7 @@ void enterValvesClosed() {
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
   vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
   vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, LOW);
@@ -341,7 +402,7 @@ void enterPostmix() {
   digitalWrite(PIN_VALVE_1_REV, HIGH);
   vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, LOW);
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
   vTaskDelay(200 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, LOW);
@@ -350,12 +411,81 @@ void enterPostmix() {
 void enterSleep(uint64_t sleepTime) {
   log_i("Entering sleep");
   vTaskDelete(measure_co2);
-  vTaskDelete(measure_air);
   vTaskDelete(measure_soil);
   resetReasonDeepSleep = true;
   digitalWrite(PIN_PWR_EN, LOW);
   //esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the crystal oscillator
-  esp_deep_sleep((uint32_t)sleepTime * 1000000);
+  esp_deep_sleep((uint32_t)sleepTime * 60000000);
+}
+
+static TaskHandle_t web_setup = NULL;
+static SemaphoreHandle_t web_server_status;
+
+void web_setup_task(void* parameter) {
+  // Actual meat
+  WiFi.mode(WIFI_MODE_AP);
+  auto softAP_ip = IPAddress{10, 0, 0, 1};
+  auto gateway_ip = IPAddress{0, 0, 0, 0};
+  auto subnet_mask = IPAddress{255, 255, 255, 0};
+  WiFi.softAPConfig(softAP_ip, gateway_ip, subnet_mask);
+  WiFi.softAP("esp-captive");
+
+  // All roads lead to Rome
+  dnsServer.start(53, "*", WiFi.softAPIP());
+
+  // Redirect to correct url so the whitelisting works.
+  server.addHandler(new CaptiveRequestHandler())
+      .setFilter(ON_AP_FILTER);  // only when requested from AP
+
+  // Index route
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *req) {
+    req->send(SD, "/index.html", "text/html", false, index_template_processor);
+  });
+
+  // Delete measurement data route
+  server.on("/deleteall", HTTP_GET, [](AsyncWebServerRequest *req) {
+    auto dir = SD.open(data_dir);
+    while (true) {
+      auto file = dir.openNextFile();
+      if (!file) break;
+      auto path = file.path();
+      file.close();
+      log_d("Deleting %s,  %s", path, SD.remove(path) ? "SUCCESS" : "FAILURE");
+    }
+    dir.close();
+    req->redirect("http://" + WiFi.softAPIP().toString() + "/");
+  });
+
+  server.on("/start", HTTP_GET, [](AsyncWebServerRequest *req) {
+    config.latitude = req->getParam("lat")->value().toFloat();
+    config.longitude = req->getParam("lon")->value().toFloat();
+    config.sleep_duration = req->getParam("co2interval")->value().toInt();
+    config.co2_meas_interval = req->getParam("co2lograte")->value().toInt();
+    config.soil_meas_interval = req->getParam("soillograte")->value().toInt();
+    config.warmup_time = req->getParam("warmupduration")->value().toInt();
+    config.premix_time = req->getParam("premixduration")->value().toInt();
+    config.measurement_time = req->getParam("valvesclosedduration")->value().toInt();
+    config.postmix_time = req->getParam("postmixduration")->value().toInt();
+    location_notes = std::string(req->getParam("locnotes")->value().c_str());
+    setTimeFromWeb(req->getParam("timestamp")->value());
+    req->send(200, "text_plain", "Submitted.");
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    xSemaphoreGive(web_server_status);
+  });
+
+  // Serve static files
+  server.serveStatic("/", SD, "/");
+
+  // 404 route
+  server.onNotFound([](AsyncWebServerRequest *req) {
+    req->send(404, "text/plain", "Not found.");
+  });
+  server.begin();
+
+  while(true) {
+    dnsServer.processNextRequest();
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
 }
 
 void setup() {
@@ -382,7 +512,15 @@ void setup() {
   digitalWrite(PIN_VALVE_2_FWD, LOW);
   digitalWrite(PIN_VALVE_2_REV, LOW);
 
-  vTaskDelay(100 / portTICK_PERIOD_MS); // The SD card has issues, maybe it's too fast?
+  // Visual indicator for reset, remove for production
+  /*
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(PIN_STATUS_LED, HIGH);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    digitalWrite(PIN_STATUS_LED, LOW);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+  }
+  */
 
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   Serial.begin(115200);
@@ -429,12 +567,37 @@ void setup() {
       }
     }
     preferences.end();
+    web_server_status = xSemaphoreCreateBinary();
+    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, NULL, 10, &web_setup, 1);
+    
+    // Wait for 15 minutes or the user submits the form
+    unsigned long current_millis = millis();
+    while ((millis() - current_millis < 54000000) && (xSemaphoreTake(web_server_status, 0) != pdTRUE)) {
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+    vTaskDelete(web_setup);
+    server.end();
+    dnsServer.stop();
+    WiFi.mode(WIFI_MODE_NULL);
+
+    // Create new file for measurements
+    config.logfilename = LOGFILE_PREFIX + serial_number + "_" + timestamp() + LOGFILE_POSTFIX;
+
+    writeConfig();
+
+    if (!SD.exists("/data")) SD.mkdir("/data");
+    log_i("Creating file %s", config.logfilename.c_str());
+    auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
+    if (!file)
+      log_fail("SD Card failed to open!", false,
+               true); // If we don't have a file we stop
+    file.println((location_notes + "$\n").c_str());
+    file.println(header.c_str());
+    file.close();
   }
 
   // Create modbus for CO2 sensor
   static auto mb = Modbus(&Serial1);
-
-  vTaskDelay(300 / portTICK_PERIOD_MS);
 
   // Configure SCD30s
   scd30 = SCD30_MB(&mb);
@@ -451,19 +614,6 @@ void setup() {
   
   vTaskDelay(100 / portTICK_PERIOD_MS);
 
-  // Create new file for measurements
-  logfilename = LOGFILE_PREFIX + serial_number +
-                LOGFILE_POSTFIX; // The UID is not unique during startup, we can
-                                 // change that by either having the RF
-                                 // subsystem on or using uid(6, true);
-  log_i("Creating file %s", logfilename.c_str());
-  auto file = SD.open(logfilename.c_str(), FILE_WRITE);
-  if (!file)
-    log_fail("SD Card failed to open!", false,
-             true); // If we don't have a file we stop
-  file.println(header.c_str());
-  file.close();
-
   enterWarmup();
   vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
   enterPremix();
@@ -476,119 +626,3 @@ void setup() {
 }
 
 void loop() { log_fail("Why are we in the loop?", false, true); }
-
-/*********************************************************************/
-/***************************** OLD CODE ******************************/
-/*********************************************************************/
-
-// Sets internal clock to use time from GPS
-/*
-void setTimeFromGPS() {
-  struct tm time{};
-  time.tm_year = gps_module.getYear() - 1900;
-  time.tm_mon = gps_module.getMonth() - 1;
-  time.tm_mday = gps_module.getDay();
-  time.tm_hour = gps_module.getHour();
-  time.tm_min = gps_module.getMinute();
-  time.tm_sec = gps_module.getSecond();
-  time_t rawtime = mktime(&time);
-  struct timeval tv;
-  struct timezone tz;
-  tv.tv_sec = rawtime;
-  tv.tv_usec = 0;
-  tz.tz_minuteswest = 0;
-  tz.tz_dsttime = 0;
-  settimeofday(&tv, &tz);
-}
-*/
-
-/*
-void oldSetup() {
-  log_i("Waiting for sensors to turn on...");
-  vTaskDelay(3000 / portTICK_PERIOD_MS);
-  log_i("Initializing sensors...");
-
-  // Set up serial ports for CO2 sensors
-  Serial1.begin(115200, SERIAL_8N2, PIN_UART_RX, PIN_UART_TX);  // Sensor bank 1
-  //Serial2.begin(115200, SERIAL_8N2, U2_RX, U2_TX);  // Sensor bank 2
-
-  // Create modbus for CO2 sensors
-  static auto mb1 = Modbus(&Serial1);
-  //static auto mb2 = Modbus(&Serial2);
-
-  vTaskDelay(3000 / portTICK_PERIOD_MS);
-
-  // Configure SCD30s
-  scd30.set_meas_interval();
-  scd30.start_cont_measurements(0x0000);
-
-  // Set up I2C peripherals
-  log_fail("I2C initialization...      ", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 1 Initialization... ", bme280_1.begin(0x76, &Wire), true);
-
-  vTaskDelay(100/portTICK_PERIOD_MS);
-
-  // Set up SD card
-  SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI),
-!CONTINUE_WITHOUT_SD);
-
-  // Create new file for measurements
-  filename = LOGFILE_PREFIX + uid() + LOGFILE_POSTFIX; //The UID is not unique
-during startup, we can change that by either having the RF subsystem on or using
-uid(6, true); log_i("Creating file %s", filename.c_str()); auto file =
-SD.open(filename.c_str(), FILE_WRITE); if (!file) log_fail("SD Card failed to
-open!", false, true); // If we don't have file we stop
-  file.println(header.c_str());
-  file.close();
-  digitalWrite(PIN_STATUS_LED, HIGH);
-}
-*/
-
-/*
-void oldLoop() {
-  if (loopTimer > millis()) loopTimer = millis(); // If millis loops around we
-reset (happens after 49.7 days)
-
-  if (millis() - loopTimer >= 1000) {
-    loopTimer = millis();
-    std::stringstream ss{""};
-
-    std::string time = timestamp();
-
-    // Read sensor values from SCD30
-    bool scdReady = false;
-    scd30.data_ready(&scdReady);
-    if (scdReady) {
-      SCD30_Measurement scd30_meas;
-      scd30.read_measurement(&scd30_meas);
-      fmt_meas(time, ss, "scd30_co2", scd30_meas.co2);
-      fmt_meas(time, ss, "scd30_temperature", scd30_meas.temperature);
-      fmt_meas(time, ss, "scd30_humidity", scd30_meas.humidity_percent);
-    }
-
-    // Read BME280 environmental data
-    sensors_event_t temp_1, hume_1, pres_1;
-    bme_temp->getEvent(&temp_1);
-    bme_hume->getEvent(&hume_1);
-    bme_pres->getEvent(&pres_1);
-    fmt_meas(time, ss, "bme280_1_temperature", temp_1.temperature);
-    fmt_meas(time, ss, "bme280_1_humidity", hume_1.relative_humidity);
-    fmt_meas(time, ss, "bme280_1_pressure", pres_1.pressure, 9);
-
-    // Log data for debugging
-    //log_d("%s", ss.str().c_str());
-
-    // Save data to file
-    auto file = SD.open(filename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", filename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-  }
-}
-*/
