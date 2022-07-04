@@ -52,10 +52,10 @@ String index_filelist(bool size = false) {
 }
 
 // Replace %PLACEHOLDERS% in index.html with real values
-String index_template_processor(const String &var) {
+String Webserver::index_template_processor(const String &var) {
   log_d("index_template called with: %s", var.c_str());
   if (var == "SERIAL_NUMBER") {
-    return serial_number.c_str();
+    return (*serial_number).c_str();
   } else if (var == "filelist") {
     return index_filelist();
   } else if (var == "sizelist") {
