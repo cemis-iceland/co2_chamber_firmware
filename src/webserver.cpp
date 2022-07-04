@@ -11,7 +11,8 @@
 #endif
 #include "ESPAsyncWebServer.h"
 
-
+DNSServer dnsServer;
+AsyncWebServer server(80);
 
 // Redirect all requests to the ip of the ESP (necessary for whitelist rules).
 class CaptiveRequestHandler : public AsyncWebHandler {
