@@ -61,12 +61,11 @@ auto bme_hume = bme280.getHumiditySensor();
 
 unsigned long loopTimer = 0;
 
+Webserver webserver;
+
 Preferences preferences;
 
 std::string serial_number = "0-0";
-
-DNSServer dnsServer;
-AsyncWebServer server(80);
 
 const char data_dir[] = "/data";
 
