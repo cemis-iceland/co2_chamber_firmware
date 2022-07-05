@@ -1,3 +1,5 @@
+#ifndef logger_h
+#define logger_h 1
 #include "SCD30_MB.hpp"
 #include "pin_assignments.h"
 #include <Arduino.h>
@@ -45,3 +47,5 @@ void enterPremix();
 void enterValvesClosed();
 void enterPostmix();
 void enterSleep(uint64_t sleepTime, bool* resetReason);
+
+#endif

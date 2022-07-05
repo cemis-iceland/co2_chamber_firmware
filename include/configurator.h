@@ -1,3 +1,5 @@
+#ifndef configurator_h
+#define configurator_h 1
 #include <Arduino.h>
 
 #include <iostream>
@@ -46,3 +48,5 @@ void readConfig();
 String index_filelist(bool size = false);
 String index_template_processor(const String &var);
 void setTimeFromWeb(String time_string);
+
+#endif
