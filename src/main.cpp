@@ -45,6 +45,20 @@ extern "C" {
 
 RTC_DATA_ATTR bool resetReasonDeepSleep = false;
 
+struct Config {
+  float latitude = 64.136978;
+  float longitude = -21.945821;
+  int warmup_time = 300; // 300
+  int premix_time = 180; // 180
+  int measurement_time = 240; // 240
+  int postmix_time = 180; // 180
+  int co2_meas_interval = 2; // The interval at which the SCD30 takes measurements in seconds
+  int soil_meas_interval = 6; // The interval at which the soil temp and soil moist sensors take measurements in seconds // Default 60s
+  int sleep_duration = 180; //10 800; // The sleep duration in minutes
+  int chamber_type = 0; // 0 = valve, 1 = forced diffusion
+  std::string logfilename = "temp.csv";
+} config;
+
 // Sensor instances
 SCD30_MB scd30;
 OneWire oneWire(PIN_TEMP_SENSOR);
