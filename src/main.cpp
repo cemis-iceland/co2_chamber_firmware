@@ -1,4 +1,5 @@
 #include "SCD30_MB.hpp"
+#include "config.h"
 #include "meas_format.h"
 #include "pin_assignments.h"
 #include "util.h"
@@ -52,24 +53,13 @@ extern "C" {
 
 // Settings
 #define CONTINUE_WITHOUT_SD false
+#define CONF_FILE "/chamber_conf.json"
+#define LOGFILE_PREFIX "/data/measurements_"
+#define LOGFILE_POSTFIX ".csv"
 
+// Globals
+Config config;
 RTC_DATA_ATTR bool resetReasonDeepSleep = false;
-
-struct Config {
-  float latitude = 64.136978;
-  float longitude = -21.945821;
-  int warmup_time = 300;      // 300
-  int premix_time = 180;      // 180
-  int measurement_time = 240; // 240
-  int postmix_time = 180;     // 180
-  int co2_meas_interval =
-      2; // The interval at which the SCD30 takes measurements in seconds
-  int soil_meas_interval =
-      6; // The interval at which the soil temp and soil moist sensors take
-         // measurements in seconds // Default 60s
-  int sleep_duration = 180; // 10 800; // The sleep duration in minutes
-  std::string logfilename = "temp.csv";
-} config;
 
 // Sensor instances
 SCD30_MB scd30;
@@ -80,12 +70,6 @@ Adafruit_BME280 bme280{};
 auto bme_temp = bme280.getTemperatureSensor();
 auto bme_pres = bme280.getPressureSensor();
 auto bme_hume = bme280.getHumiditySensor();
-
-#define CONF_FILE "/chamber_conf.json"
-#define LOGFILE_PREFIX "/data/measurements_"
-#define LOGFILE_POSTFIX ".csv"
-
-unsigned long loopTimer = 0;
 
 Preferences preferences;
 
@@ -194,68 +178,6 @@ std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
   ss << time << delim << variable << delim << std::setprecision(precision)
      << value << '\n';
   return ss;
-}
-
-void writeConfig() {
-  // Create new file for measurements
-  std::string filename = CONF_FILE;
-
-  log_i("Creating file %s", filename.c_str());
-
-  SD.remove(filename.c_str());
-  auto file = SD.open(filename.c_str(), FILE_WRITE);
-  if (!file)
-    log_fail("SD Card failed to open!", false,
-             true); // If we don't have file we stop
-
-  json11::Json configuration =
-      json11::Json::object{{"version", (int)1},
-                           {"latitude", config.latitude},
-                           {"longitude", config.longitude},
-                           {"warmup_time", config.warmup_time},
-                           {"premix_time", config.premix_time},
-                           {"measurement_time", config.measurement_time},
-                           {"postmix_time", config.postmix_time},
-                           {"co2_meas_interval", config.co2_meas_interval},
-                           {"soil_meas_interval", config.soil_meas_interval},
-                           {"sleep_duration", config.sleep_duration},
-                           {"log_file_name", config.logfilename}};
-  std::string configuration_str = configuration.dump();
-  file.print(configuration_str.c_str());
-  file.close();
-}
-
-void readConfig() {
-  std::string filename = CONF_FILE;
-
-  if (!SD.exists(filename.c_str())) {
-    log_i("File %s doesn't exist, creating default file", filename.c_str());
-    writeConfig();
-  }
-
-  auto file = SD.open(filename.c_str(), FILE_READ);
-  if (!file)
-    log_fail("SD Card failed to open!", false,
-             true); // If we don't have file we stop
-  std::string buf = "";
-  while (file.available()) {
-    buf += file.read();
-  }
-  std::string err;
-  json11::Json configuration = json11::Json::parse(buf, err);
-  int version = configuration["version"].int_value();
-  if (version == 1) {
-    config.latitude = configuration["latitude"].int_value();
-    config.longitude = configuration["longitude"].int_value();
-    config.warmup_time = configuration["warmup_time"].int_value();
-    config.premix_time = configuration["premix_time"].int_value();
-    config.measurement_time = configuration["measurement_time"].int_value();
-    config.postmix_time = configuration["postmix_time"].int_value();
-    config.co2_meas_interval = configuration["co2_meas_interval"].int_value();
-    config.soil_meas_interval = configuration["soil_meas_interval"].int_value();
-    config.sleep_duration = configuration["sleep_duration"].int_value();
-    config.logfilename = configuration["log_file_name"].string_value();
-  }
 }
 
 static TaskHandle_t measure_co2 = NULL;
@@ -398,7 +320,7 @@ void enterSleep(uint64_t sleepTime) {
 }
 
 static TaskHandle_t web_setup = NULL;
-static SemaphoreHandle_t web_server_status;
+static SemaphoreHandle_t web_form_submitted;
 
 void web_setup_task(void* parameter) {
   // Actual meat
@@ -451,7 +373,7 @@ void web_setup_task(void* parameter) {
     setTimeFromWeb(req->getParam("timestamp")->value());
     req->send(200, "text_plain", "Submitted.");
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    xSemaphoreGive(web_server_status);
+    xSemaphoreGive(web_form_submitted);
   });
 
   // Serve static files
@@ -514,7 +436,7 @@ void setup() {
   if (resetReasonDeepSleep) {
     // Run deep sleep wakeup code (website, write config to SD, etc)
     log_i("%s SUCCESS", "Starting from deep sleep...");
-    readConfig();
+    config.readFrom(SD, CONF_FILE);
     preferences.begin("hardinfo");
     serial_number = std::string(preferences.getString("serial_number").c_str());
     preferences.end();
@@ -549,26 +471,24 @@ void setup() {
       }
     }
     preferences.end();
-    web_server_status = xSemaphoreCreateBinary();
+    web_form_submitted = xSemaphoreCreateBinary();
     xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, NULL, 10,
                             &web_setup, 1);
 
-    // Wait for 15 minutes or the user submits the form
-    unsigned long current_millis = millis();
-    while ((millis() - current_millis < 54000000) &&
-           (xSemaphoreTake(web_server_status, 0) != pdTRUE)) {
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
+    // Wait until web form is submitted, timing out after 15 minutes
+    xSemaphoreTake(web_form_submitted, (15 * 60 * 1000) / portTICK_PERIOD_MS);
+
+    // Tear down web server
     vTaskDelete(web_setup);
     server.end();
     dnsServer.stop();
-    WiFi.mode(WIFI_MODE_NULL);
+    WiFi.mode(WIFI_OFF);
 
     // Create new file for measurements
     config.logfilename =
         LOGFILE_PREFIX + serial_number + "_" + timestamp() + LOGFILE_POSTFIX;
 
-    writeConfig();
+    config.writeTo(SD, CONF_FILE);
 
     if (!SD.exists("/data"))
       SD.mkdir("/data");
@@ -592,8 +512,7 @@ void setup() {
 
   // Set up I2C peripherals
   log_fail("I2C initialization...      ", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 Initialization... ", bme280.begin(0x76, &Wire),
-           true); // set back to true, temporarily set to false for testing
+  log_fail("BME280 Initialization... ", bme280.begin(0x76, &Wire), true);
 
   // Set up DS18B20 temperature sensor
   soil_temp.begin();
