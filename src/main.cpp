@@ -1,6 +1,8 @@
 #include "SCD30_MB.hpp"
 #include "meas_format.h"
 #include "pin_assignments.h"
+#include "util.h"
+
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
 #include <SD.h>
@@ -15,12 +17,12 @@
 extern "C" {
 #include "bootloader_random.h"
 }
+#include <DNSServer.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
 #include <Preferences.h>
 #include <json11.hpp>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <rom/rtc.h>
-#include <DNSServer.h>
 #ifdef ESP32
 #include <AsyncTCP.h>
 #include <WiFi.h>
@@ -56,13 +58,16 @@ RTC_DATA_ATTR bool resetReasonDeepSleep = false;
 struct Config {
   float latitude = 64.136978;
   float longitude = -21.945821;
-  int warmup_time = 300; // 300
-  int premix_time = 180; // 180
+  int warmup_time = 300;      // 300
+  int premix_time = 180;      // 180
   int measurement_time = 240; // 240
-  int postmix_time = 180; // 180
-  int co2_meas_interval = 2; // The interval at which the SCD30 takes measurements in seconds
-  int soil_meas_interval = 6; // The interval at which the soil temp and soil moist sensors take measurements in seconds // Default 60s
-  int sleep_duration = 180; //10 800; // The sleep duration in minutes
+  int postmix_time = 180;     // 180
+  int co2_meas_interval =
+      2; // The interval at which the SCD30 takes measurements in seconds
+  int soil_meas_interval =
+      6; // The interval at which the soil temp and soil moist sensors take
+         // measurements in seconds // Default 60s
+  int sleep_duration = 180; // 10 800; // The sleep duration in minutes
   std::string logfilename = "temp.csv";
 } config;
 
@@ -95,11 +100,11 @@ std::string location_notes;
 
 // Redirect all requests to the ip of the ESP (necessary for whitelist rules).
 class CaptiveRequestHandler : public AsyncWebHandler {
- public:
+public:
   CaptiveRequestHandler() {}
   virtual ~CaptiveRequestHandler() {}
 
-  bool canHandle(AsyncWebServerRequest *request) {
+  bool canHandle(AsyncWebServerRequest* request) {
     // Only redirect if the requested host doesn't match
     bool res = request->host() != WiFi.softAPIP().toString();
     log_d("Host: %s", request->host().c_str());
@@ -107,7 +112,7 @@ class CaptiveRequestHandler : public AsyncWebHandler {
     return res;
   }
 
-  void handleRequest(AsyncWebServerRequest *request) {
+  void handleRequest(AsyncWebServerRequest* request) {
     request->redirect("http://" + WiFi.softAPIP().toString() + "/");
   }
 };
@@ -118,7 +123,8 @@ String index_filelist(bool size = false) {
   auto ss = std::stringstream{};
   while (true) {
     auto file = root.openNextFile();
-    if (!file) break;  // No more files
+    if (!file)
+      break; // No more files
     log_d("File: %s", file.name());
     if (size) {
       ss << (float)file.size() << ", ";
@@ -132,7 +138,7 @@ String index_filelist(bool size = false) {
 }
 
 // Replace %PLACEHOLDERS% in index.html with real values
-String index_template_processor(const String &var) {
+String index_template_processor(const String& var) {
   log_d("index_template called with: %s", var.c_str());
   if (var == "SERIAL_NUMBER") {
     return serial_number.c_str();
@@ -158,20 +164,11 @@ String index_template_processor(const String &var) {
   return var;
 }
 
-// Create a string timestamp from the internal clock
-std::string timestamp() {
-  char buf[128]{0};
-  time_t t;
-  time(&t);
-  strftime(buf, 128, "%FT%Hh%Mm%Ss", gmtime(&t));
-  std::string ss = std::string{buf};
-  return ss;
-}
-
 // Set time from the time submitted with the web form
 void setTimeFromWeb(String time_string) {
   log_i("Time: %s", time_string.c_str());
-  time_t rawtime = (time_t)(time_string.toDouble() / 1000); // Convert to seconds / 1000
+  time_t rawtime =
+      (time_t)(time_string.toDouble() / 1000); // Convert to seconds / 1000
   log_i("More time: %d", rawtime);
   struct timeval tv;
   struct timezone tz;
@@ -197,26 +194,6 @@ std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
   ss << time << delim << variable << delim << std::setprecision(precision)
      << value << '\n';
   return ss;
-}
-
-// Logging for serial monitor
-// TODO: add battery level check to ensure we don't kill the battery
-inline bool log_fail(const char* msg, bool val, bool freeze = true) {
-  if (val) {
-    log_i("%s SUCCESS", msg);
-  } else {
-    log_e("%s FAILURE                <--- WARNING", msg);
-    if (freeze) {
-      for (int i = 0; i < 20; i++) {
-        digitalWrite(PIN_STATUS_LED, HIGH);
-        delay(50);
-        digitalWrite(PIN_STATUS_LED, LOW);
-        delay(200);
-      }
-      ESP.restart();
-    }
-  }
-  return val;
 }
 
 void writeConfig() {
@@ -319,7 +296,7 @@ void measure_co2_task(void* parameter) {
     // Log data for debugging
     // log_d("%s", ss.str().c_str());
 
-    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
+    while (xSemaphoreTake(SD_mutex, portMAX_DELAY) != pdTRUE) {
       vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
@@ -347,8 +324,7 @@ void measure_soil_task(void* parameter) {
     float temperature = soil_temp.getTempCByIndex(0);
     int soil_moisture = analogRead(PIN_MOIST_SENSOR);
 
-    fmt_meas(time, ss, "soil_temperature",
-             temperature, 5);
+    fmt_meas(time, ss, "soil_temperature", temperature, 5);
     fmt_meas(time, ss, "soil_moisture", soil_moisture);
 
     // Log data for debugging
@@ -377,8 +353,10 @@ void measure_soil_task(void* parameter) {
 void enterWarmup() {
   log_i("Entering warmup");
   SD_mutex = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10, &measure_co2, 1);
-  xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10, &measure_soil, 1);
+  xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
+                          &measure_co2, 1);
+  xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10,
+                          &measure_soil, 1);
 }
 
 void enterPremix() {
@@ -414,7 +392,8 @@ void enterSleep(uint64_t sleepTime) {
   vTaskDelete(measure_soil);
   resetReasonDeepSleep = true;
   digitalWrite(PIN_PWR_EN, LOW);
-  //esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the crystal oscillator
+  // esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the
+  // crystal oscillator
   esp_deep_sleep((uint32_t)sleepTime * 60000000);
 }
 
@@ -435,19 +414,20 @@ void web_setup_task(void* parameter) {
 
   // Redirect to correct url so the whitelisting works.
   server.addHandler(new CaptiveRequestHandler())
-      .setFilter(ON_AP_FILTER);  // only when requested from AP
+      .setFilter(ON_AP_FILTER); // only when requested from AP
 
   // Index route
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *req) {
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* req) {
     req->send(SD, "/index.html", "text/html", false, index_template_processor);
   });
 
   // Delete measurement data route
-  server.on("/deleteall", HTTP_GET, [](AsyncWebServerRequest *req) {
+  server.on("/deleteall", HTTP_GET, [](AsyncWebServerRequest* req) {
     auto dir = SD.open(data_dir);
     while (true) {
       auto file = dir.openNextFile();
-      if (!file) break;
+      if (!file)
+        break;
       auto path = file.path();
       file.close();
       log_d("Deleting %s,  %s", path, SD.remove(path) ? "SUCCESS" : "FAILURE");
@@ -456,7 +436,7 @@ void web_setup_task(void* parameter) {
     req->redirect("http://" + WiFi.softAPIP().toString() + "/");
   });
 
-  server.on("/start", HTTP_GET, [](AsyncWebServerRequest *req) {
+  server.on("/start", HTTP_GET, [](AsyncWebServerRequest* req) {
     config.latitude = req->getParam("lat")->value().toFloat();
     config.longitude = req->getParam("lon")->value().toFloat();
     config.sleep_duration = req->getParam("co2interval")->value().toInt();
@@ -464,7 +444,8 @@ void web_setup_task(void* parameter) {
     config.soil_meas_interval = req->getParam("soillograte")->value().toInt();
     config.warmup_time = req->getParam("warmupduration")->value().toInt();
     config.premix_time = req->getParam("premixduration")->value().toInt();
-    config.measurement_time = req->getParam("valvesclosedduration")->value().toInt();
+    config.measurement_time =
+        req->getParam("valvesclosedduration")->value().toInt();
     config.postmix_time = req->getParam("postmixduration")->value().toInt();
     location_notes = std::string(req->getParam("locnotes")->value().c_str());
     setTimeFromWeb(req->getParam("timestamp")->value());
@@ -477,12 +458,12 @@ void web_setup_task(void* parameter) {
   server.serveStatic("/", SD, "/");
 
   // 404 route
-  server.onNotFound([](AsyncWebServerRequest *req) {
+  server.onNotFound([](AsyncWebServerRequest* req) {
     req->send(404, "text/plain", "Not found.");
   });
   server.begin();
 
-  while(true) {
+  while (true) {
     dnsServer.processNextRequest();
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
@@ -527,7 +508,8 @@ void setup() {
 
   // Set up SD card
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI), !CONTINUE_WITHOUT_SD);
+  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI),
+           !CONTINUE_WITHOUT_SD);
 
   if (resetReasonDeepSleep) {
     // Run deep sleep wakeup code (website, write config to SD, etc)
@@ -568,11 +550,13 @@ void setup() {
     }
     preferences.end();
     web_server_status = xSemaphoreCreateBinary();
-    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, NULL, 10, &web_setup, 1);
-    
+    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, NULL, 10,
+                            &web_setup, 1);
+
     // Wait for 15 minutes or the user submits the form
     unsigned long current_millis = millis();
-    while ((millis() - current_millis < 54000000) && (xSemaphoreTake(web_server_status, 0) != pdTRUE)) {
+    while ((millis() - current_millis < 54000000) &&
+           (xSemaphoreTake(web_server_status, 0) != pdTRUE)) {
       vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     vTaskDelete(web_setup);
@@ -581,11 +565,13 @@ void setup() {
     WiFi.mode(WIFI_MODE_NULL);
 
     // Create new file for measurements
-    config.logfilename = LOGFILE_PREFIX + serial_number + "_" + timestamp() + LOGFILE_POSTFIX;
+    config.logfilename =
+        LOGFILE_PREFIX + serial_number + "_" + timestamp() + LOGFILE_POSTFIX;
 
     writeConfig();
 
-    if (!SD.exists("/data")) SD.mkdir("/data");
+    if (!SD.exists("/data"))
+      SD.mkdir("/data");
     log_i("Creating file %s", config.logfilename.c_str());
     auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
     if (!file)
@@ -611,7 +597,7 @@ void setup() {
 
   // Set up DS18B20 temperature sensor
   soil_temp.begin();
-  
+
   vTaskDelay(100 / portTICK_PERIOD_MS);
 
   enterWarmup();
