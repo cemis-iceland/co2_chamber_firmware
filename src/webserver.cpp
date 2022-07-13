@@ -30,8 +30,7 @@ String index_filelist(bool size = false) {
   auto ss = std::stringstream{};
   while (true) {
     auto file = root.openNextFile();
-    if (!file)
-      break; // No more files
+    if (!file) break; // No more files
     log_d("File: %s", file.name());
     if (size) {
       ss << (float)file.size() << ", ";
@@ -56,15 +55,15 @@ String index_template_processor(Config* config, const String& var) {
   } else if (var == "co2interval") {
     return std::to_string(config->sleep_duration).c_str();
   } else if (var == "co2lograte") {
-    return std::to_string(config->co2_meas_interval).c_str();
+    return std::to_string(config->co2_interval).c_str();
   } else if (var == "soillograte") {
-    return std::to_string(config->soil_meas_interval).c_str();
+    return std::to_string(config->soil_interval).c_str();
   } else if (var == "warmupduration") {
     return std::to_string(config->warmup_time).c_str();
   } else if (var == "premixduration") {
     return std::to_string(config->premix_time).c_str();
   } else if (var == "valvesclosedduration") {
-    return std::to_string(config->measurement_time).c_str();
+    return std::to_string(config->meas_time).c_str();
   } else if (var == "postmixduration") {
     return std::to_string(config->postmix_time).c_str();
   }
@@ -120,8 +119,7 @@ void web_setup_task(void* params) {
     auto dir = SD.open("/data"); // TODO: magic string, multiple uses
     while (true) {
       auto file = dir.openNextFile();
-      if (!file)
-        break;
+      if (!file) break;
       auto path = file.path();
       file.close();
       log_d("Deleting %s,  %s", path, SD.remove(path) ? "SUCCESS" : "FAILURE");
@@ -144,19 +142,18 @@ void web_setup_task(void* params) {
         setTimeFromWeb(req->getParam("timestamp")->value());
       }
       // Set rest of config's properties with a macro
-      #define FROM_PARAM(out_, param_, tofunc_)                                  \
-        if (req->hasParam(param_)) {                                             \
-        out_ = req->getParam(param_)->value() tofunc_;                           \
+      #define FROM_PARAM(out_, param_, tofunc_)                                \
+        if (req->hasParam(param_)) {                                           \
+        out_ = req->getParam(param_)->value() tofunc_;                         \
         }
       FROM_PARAM(config->latitude, "lat", .toFloat());
       FROM_PARAM(config->longitude, "lon", .toFloat());
       FROM_PARAM(config->sleep_duration, "co2interval", .toInt());
-      FROM_PARAM(config->co2_meas_interval, "co2lograte", .toInt());
-      FROM_PARAM(config->soil_meas_interval, "soillograte", .toInt());
+      FROM_PARAM(config->co2_interval, "co2lograte", .toInt());
+      FROM_PARAM(config->soil_interval, "soillograte", .toInt());
       FROM_PARAM(config->warmup_time, "warmupduration", .toInt());
       FROM_PARAM(config->premix_time, "premixduration", .toInt());
-      FROM_PARAM(config->measurement_time, "valvesclosedduration",
-                  .toInt());
+      FROM_PARAM(config->meas_time, "valvesclosedduration", .toInt());
       FROM_PARAM(config->postmix_time, "postmixduration", .toInt());
       FROM_PARAM(config->location_notes, "locnotes", .c_str());
 

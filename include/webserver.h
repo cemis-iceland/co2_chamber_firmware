@@ -5,7 +5,7 @@
 
 /* Serves a web form that allows a connected user to configure the chamber
  * and download data.
- * Once the form is submitted, the task shuts down the web server and gives the 
+ * Once the form is submitted, the task shuts down the web server and gives the
  * web_setup_done semaphore to indicate that it should be deleted.
  */
 void web_setup_task(void* param);

@@ -30,17 +30,6 @@ extern "C" {
 #include <WiFi.h>
 #endif
 #include "ESPAsyncWebServer.h"
-/*
- * Note about the Preferences library:
- * It uses the non-volatile storage partition to store the preferences, which
- * can become full. To erase it use:
- *
- * #include <nvs_flash.h>
- * void setup() {
- *  nvs_flash_erase(); // Erase NVS partition
- *  nvs_flash_init(); // Initialize the NVS partition
- * }
- */
 
 /*
  * Functionality:
@@ -58,9 +47,11 @@ extern "C" {
 #define LOGFILE_PREFIX "/data/measurements_"
 #define LOGFILE_POSTFIX ".csv"
 
+#define DEBUG_CLEAR_NVS false // Set to true to clear config storage on boot
+
 // Globals
 Config config;
-RTC_DATA_ATTR bool resetReasonDeepSleep = false;
+RTC_DATA_ATTR bool experimentOngoing = false;
 
 // Sensor instances
 SCD30_MB scd30;
@@ -145,7 +136,7 @@ void measure_co2_task(void* parameter) {
     file.close();
 
     xSemaphoreGive(SD_mutex);
-    vTaskDelay(config.co2_meas_interval * 1000 / portTICK_PERIOD_MS);
+    vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -179,7 +170,7 @@ void measure_soil_task(void* parameter) {
     file.close();
 
     xSemaphoreGive(SD_mutex);
-    vTaskDelay(config.soil_meas_interval * 1000 / portTICK_PERIOD_MS);
+    vTaskDelay(config.soil_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -223,15 +214,14 @@ void enterSleep(uint64_t sleepTime) {
   log_i("Entering sleep");
   vTaskDelete(measure_co2);
   vTaskDelete(measure_soil);
-  resetReasonDeepSleep = true;
+  experimentOngoing = true;
   digitalWrite(PIN_PWR_EN, LOW);
   // esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the
   // crystal oscillator
   esp_deep_sleep((uint32_t)sleepTime * 60000000);
 }
 
-
-void loop() {
+void setup() {
   // Prepare GPIO
   /*
    * NOTE:
@@ -270,50 +260,26 @@ void loop() {
 
   // Set up SD card
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-  log_fail("SD initialization...       ", SD.begin(PIN_SD_CSN, SPI),
+  log_fail("SD initialization...", SD.begin(PIN_SD_CSN, SPI),
            !CONTINUE_WITHOUT_SD);
 
-  if (resetReasonDeepSleep) {
-    // Run deep sleep wakeup code (website, write config to SD, etc)
-    log_i("%s SUCCESS", "Starting from deep sleep...");
-    config.readFrom(SD, CONF_FILE);
-    preferences.begin("hardinfo");
-    config.serial_number =
-        std::string(preferences.getString("serial_number").c_str());
-    preferences.end();
-  } else {
-    // Run POR startup code (read config from SD, check battery health)
-    log_i("%s SUCCESS", "Starting from POR...");
+  if (!experimentOngoing) {
+    // Power on reset, run set up and configuration
+    log_i("Starting from POR...");
 
-    preferences.begin("hardinfo");
-    if (preferences.getType("serial_number") != PT_INVALID) {
-      config.serial_number =
-          std::string(preferences.getString("serial_number").c_str());
-      if (config.serial_number == "0") {
-        log_fail("Serial number is 0, please provide valid serial number:",
-                 false, false);
-        bool has_valid_serial = false;
-        std::string ss = "";
-        while (!has_valid_serial) {
-          if (Serial.available() > 0) {
-            char incomingByte = Serial.read();
-            if (incomingByte == 0x0D || incomingByte == 0x0A) {
-              while (Serial.available() > 0) {
-                Serial.read();
-              }
-              config.serial_number = ss;
-              has_valid_serial = true;
-            } else {
-              ss += incomingByte;
-            }
-          }
-        }
-        preferences.putString("serial_number", config.serial_number.c_str());
-      }
+    // For debugging or resetting the serial number
+    if (DEBUG_CLEAR_NVS) { config.clear(); };
+
+    // Check if we have a serial number, if not, prompt for one.
+    config.restore();
+    if (config.serial_number == "") {
+      log_e("Serial number is unset, please provide valid serial number");
+      Serial.print("Enter serial number> ");
+      config.serial_number = readLine().c_str();
     }
-    preferences.end();
 
-    // Start web setup
+    // TODO: Could we just call web setup directly?
+    //  Start web setup
     SemaphoreHandle_t web_setup_done = xSemaphoreCreateBinary();
     auto web_params = web_setup_task_params_t{};
     web_params.web_setup_done = web_setup_done;
@@ -330,12 +296,8 @@ void loop() {
 
     // Create new file for measurements
     config.logfilename = LOGFILE_PREFIX + config.serial_number + "_" +
-                         timestamp() + LOGFILE_POSTFIX;
-
-    config.writeTo(SD, CONF_FILE);
-
-    if (!SD.exists("/data"))
-      SD.mkdir("/data");
+                         timestamp().c_str() + LOGFILE_POSTFIX;
+    if (!SD.exists("/data")) SD.mkdir("/data");
     log_i("Creating file %s", config.logfilename.c_str());
     auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
     if (!file)
@@ -346,7 +308,15 @@ void loop() {
     file.print(config.location_notes.c_str());
     file.println("\"");
     file.close();
-    log_i("Successfully wrote config to SD");
+
+    // Save configuration to internal storage
+    config.save();
+    log_i("Successfully saved configuration");
+  } else {
+    // We're waking up from deep sleep during an ongoing experiment
+    // So we just need to restore the config
+    log_i("Starting from deep sleep...");
+    config.restore();
   }
 
   // Create modbus for CO2 sensor
@@ -371,11 +341,14 @@ void loop() {
   enterPremix();
   vTaskDelay(config.premix_time * 1000 / portTICK_PERIOD_MS);
   enterValvesClosed();
-  vTaskDelay(config.measurement_time * 1000 / portTICK_PERIOD_MS);
+  vTaskDelay(config.meas_time * 1000 / portTICK_PERIOD_MS);
   enterPostmix();
   vTaskDelay(config.postmix_time * 1000 / portTICK_PERIOD_MS);
   enterSleep(config.sleep_duration);
 }
 
-void setup(){};
-// void loop() { log_fail("Why are we in the loop?", false, true); }
+void loop() {
+  log_e("Why are we in the loop?");
+  for (;;)
+    ;
+}

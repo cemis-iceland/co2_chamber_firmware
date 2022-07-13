@@ -32,4 +32,24 @@ inline std::string timestamp() {
   return std::string{buf};
 }
 
+inline std::string readLine() {
+  std::string ss{};
+  while (true) {
+    if (Serial.available() > 0) {
+      char incomingByte = Serial.read();
+      Serial.write(incomingByte); // Echo
+      if (incomingByte == '\r' || incomingByte == '\n') {
+        // Consume any garbage
+        while (Serial.available() > 0) {
+          Serial.read();
+        }
+        return ss;
+      } else if (incomingByte == '\b' && !ss.empty()) { // Backspace
+        ss.pop_back();
+      } else {
+        ss += incomingByte;
+      }
+    }
+  }
+}
 #endif // UTIL_H
