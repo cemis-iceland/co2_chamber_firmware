@@ -3,8 +3,8 @@
 #include <FS.h>
 #include <string>
 
-/* Manages configurationm including serialization and deserializing */
-
+/* Manages configuration including de/serialization to json */
+// Configuration structure for an experiment
 struct Config {
   float latitude = 64.136978;
   float longitude = -21.945821;
@@ -18,9 +18,17 @@ struct Config {
                                  moist sensors take measurements in seconds.
                                  Default 60s */
   int sleep_duration = 180;   // The sleep duration in minutes
-  std::string logfilename = "temp.csv";
+  std::string logfilename = "temp.csv"; // File where measurements are stored.
 
+  // NOT SERIALIZED
+  std::string location_notes = "";
+  std::string serial_number = "";
+
+  /* Attempts to parse the configuration file at path on the given filesystem */
   void readFrom(FS& fs, const char* path);
+
+  /** Write the current configuration to the given path on the given filesytem.
+  Example: config.writeTo(SD, "config.json"); */
   void writeTo(FS& fs, const char* path);
 };
 

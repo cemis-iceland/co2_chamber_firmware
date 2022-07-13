@@ -3,6 +3,7 @@
 #include "meas_format.h"
 #include "pin_assignments.h"
 #include "util.h"
+#include "webserver.h"
 
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
@@ -72,96 +73,6 @@ auto bme_pres = bme280.getPressureSensor();
 auto bme_hume = bme280.getHumiditySensor();
 
 Preferences preferences;
-
-std::string serial_number = "0-0";
-
-DNSServer dnsServer;
-AsyncWebServer server(80);
-
-const char data_dir[] = "/data";
-
-std::string location_notes;
-
-// Redirect all requests to the ip of the ESP (necessary for whitelist rules).
-class CaptiveRequestHandler : public AsyncWebHandler {
-public:
-  CaptiveRequestHandler() {}
-  virtual ~CaptiveRequestHandler() {}
-
-  bool canHandle(AsyncWebServerRequest* request) {
-    // Only redirect if the requested host doesn't match
-    bool res = request->host() != WiFi.softAPIP().toString();
-    log_d("Host: %s", request->host().c_str());
-    log_d("Redirect: %s", res ? "Yes" : "No");
-    return res;
-  }
-
-  void handleRequest(AsyncWebServerRequest* request) {
-    request->redirect("http://" + WiFi.softAPIP().toString() + "/");
-  }
-};
-
-// Return a comma seperated list of data files on the sd card
-String index_filelist(bool size = false) {
-  auto root = SD.open(data_dir);
-  auto ss = std::stringstream{};
-  while (true) {
-    auto file = root.openNextFile();
-    if (!file)
-      break; // No more files
-    log_d("File: %s", file.name());
-    if (size) {
-      ss << (float)file.size() << ", ";
-    } else {
-      ss << '"' << file.name() << "\", ";
-    }
-    file.close();
-  }
-  root.close();
-  return String(ss.str().c_str());
-}
-
-// Replace %PLACEHOLDERS% in index.html with real values
-String index_template_processor(const String& var) {
-  log_d("index_template called with: %s", var.c_str());
-  if (var == "SERIAL_NUMBER") {
-    return serial_number.c_str();
-  } else if (var == "filelist") {
-    return index_filelist();
-  } else if (var == "sizelist") {
-    return index_filelist(true);
-  } else if (var == "co2interval") {
-    return std::to_string(config.sleep_duration).c_str();
-  } else if (var == "co2lograte") {
-    return std::to_string(config.co2_meas_interval).c_str();
-  } else if (var == "soillograte") {
-    return std::to_string(config.soil_meas_interval).c_str();
-  } else if (var == "warmupduration") {
-    return std::to_string(config.warmup_time).c_str();
-  } else if (var == "premixduration") {
-    return std::to_string(config.premix_time).c_str();
-  } else if (var == "valvesclosedduration") {
-    return std::to_string(config.measurement_time).c_str();
-  } else if (var == "postmixduration") {
-    return std::to_string(config.postmix_time).c_str();
-  }
-  return var;
-}
-
-// Set time from the time submitted with the web form
-void setTimeFromWeb(String time_string) {
-  log_i("Time: %s", time_string.c_str());
-  time_t rawtime =
-      (time_t)(time_string.toDouble() / 1000); // Convert to seconds / 1000
-  log_i("More time: %d", rawtime);
-  struct timeval tv;
-  struct timezone tz;
-  tv.tv_sec = rawtime;
-  tv.tv_usec = 0;
-  tz.tz_minuteswest = 0;
-  tz.tz_dsttime = 0;
-  settimeofday(&tv, &tz);
-}
 
 // Create strings for logging data
 const std::string delim = ","; // Csv column delimiter
@@ -319,79 +230,8 @@ void enterSleep(uint64_t sleepTime) {
   esp_deep_sleep((uint32_t)sleepTime * 60000000);
 }
 
-static TaskHandle_t web_setup = NULL;
-static SemaphoreHandle_t web_form_submitted;
 
-void web_setup_task(void* parameter) {
-  // Actual meat
-  WiFi.mode(WIFI_MODE_AP);
-  auto softAP_ip = IPAddress{10, 0, 0, 1};
-  auto gateway_ip = IPAddress{0, 0, 0, 0};
-  auto subnet_mask = IPAddress{255, 255, 255, 0};
-  WiFi.softAPConfig(softAP_ip, gateway_ip, subnet_mask);
-  WiFi.softAP("esp-captive");
-
-  // All roads lead to Rome
-  dnsServer.start(53, "*", WiFi.softAPIP());
-
-  // Redirect to correct url so the whitelisting works.
-  server.addHandler(new CaptiveRequestHandler())
-      .setFilter(ON_AP_FILTER); // only when requested from AP
-
-  // Index route
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest* req) {
-    req->send(SD, "/index.html", "text/html", false, index_template_processor);
-  });
-
-  // Delete measurement data route
-  server.on("/deleteall", HTTP_GET, [](AsyncWebServerRequest* req) {
-    auto dir = SD.open(data_dir);
-    while (true) {
-      auto file = dir.openNextFile();
-      if (!file)
-        break;
-      auto path = file.path();
-      file.close();
-      log_d("Deleting %s,  %s", path, SD.remove(path) ? "SUCCESS" : "FAILURE");
-    }
-    dir.close();
-    req->redirect("http://" + WiFi.softAPIP().toString() + "/");
-  });
-
-  server.on("/start", HTTP_GET, [](AsyncWebServerRequest* req) {
-    config.latitude = req->getParam("lat")->value().toFloat();
-    config.longitude = req->getParam("lon")->value().toFloat();
-    config.sleep_duration = req->getParam("co2interval")->value().toInt();
-    config.co2_meas_interval = req->getParam("co2lograte")->value().toInt();
-    config.soil_meas_interval = req->getParam("soillograte")->value().toInt();
-    config.warmup_time = req->getParam("warmupduration")->value().toInt();
-    config.premix_time = req->getParam("premixduration")->value().toInt();
-    config.measurement_time =
-        req->getParam("valvesclosedduration")->value().toInt();
-    config.postmix_time = req->getParam("postmixduration")->value().toInt();
-    location_notes = std::string(req->getParam("locnotes")->value().c_str());
-    setTimeFromWeb(req->getParam("timestamp")->value());
-    req->send(200, "text_plain", "Submitted.");
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    xSemaphoreGive(web_form_submitted);
-  });
-
-  // Serve static files
-  server.serveStatic("/", SD, "/");
-
-  // 404 route
-  server.onNotFound([](AsyncWebServerRequest* req) {
-    req->send(404, "text/plain", "Not found.");
-  });
-  server.begin();
-
-  while (true) {
-    dnsServer.processNextRequest();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-  }
-}
-
-void setup() {
+void loop() {
   // Prepare GPIO
   /*
    * NOTE:
@@ -438,7 +278,8 @@ void setup() {
     log_i("%s SUCCESS", "Starting from deep sleep...");
     config.readFrom(SD, CONF_FILE);
     preferences.begin("hardinfo");
-    serial_number = std::string(preferences.getString("serial_number").c_str());
+    config.serial_number =
+        std::string(preferences.getString("serial_number").c_str());
     preferences.end();
   } else {
     // Run POR startup code (read config from SD, check battery health)
@@ -446,9 +287,9 @@ void setup() {
 
     preferences.begin("hardinfo");
     if (preferences.getType("serial_number") != PT_INVALID) {
-      serial_number =
+      config.serial_number =
           std::string(preferences.getString("serial_number").c_str());
-      if (serial_number == "0") {
+      if (config.serial_number == "0") {
         log_fail("Serial number is 0, please provide valid serial number:",
                  false, false);
         bool has_valid_serial = false;
@@ -460,33 +301,36 @@ void setup() {
               while (Serial.available() > 0) {
                 Serial.read();
               }
-              serial_number = ss;
+              config.serial_number = ss;
               has_valid_serial = true;
             } else {
               ss += incomingByte;
             }
           }
         }
-        preferences.putString("serial_number", serial_number.c_str());
+        preferences.putString("serial_number", config.serial_number.c_str());
       }
     }
     preferences.end();
-    web_form_submitted = xSemaphoreCreateBinary();
-    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, NULL, 10,
+
+    // Start web setup
+    SemaphoreHandle_t web_setup_done = xSemaphoreCreateBinary();
+    auto web_params = web_setup_task_params_t{};
+    web_params.web_setup_done = web_setup_done;
+    web_params.config = &config;
+    web_params.timeout = 15 * 60; // timeout in 15 minutes
+    TaskHandle_t web_setup;
+    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, &web_params, 10,
                             &web_setup, 1);
-
-    // Wait until web form is submitted, timing out after 15 minutes
-    xSemaphoreTake(web_form_submitted, (15 * 60 * 1000) / portTICK_PERIOD_MS);
-
-    // Tear down web server
+    // Wait until web setup succeeds or times out.
+    xSemaphoreTake(web_setup_done, portMAX_DELAY);
     vTaskDelete(web_setup);
-    server.end();
-    dnsServer.stop();
-    WiFi.mode(WIFI_OFF);
+    vSemaphoreDelete(web_setup_done);
+    log_i("Web setup finished...");
 
     // Create new file for measurements
-    config.logfilename =
-        LOGFILE_PREFIX + serial_number + "_" + timestamp() + LOGFILE_POSTFIX;
+    config.logfilename = LOGFILE_PREFIX + config.serial_number + "_" +
+                         timestamp() + LOGFILE_POSTFIX;
 
     config.writeTo(SD, CONF_FILE);
 
@@ -497,9 +341,12 @@ void setup() {
     if (!file)
       log_fail("SD Card failed to open!", false,
                true); // If we don't have a file we stop
-    file.println((location_notes + "$\n").c_str());
     file.println(header.c_str());
+    file.print("\"Notes:");
+    file.print(config.location_notes.c_str());
+    file.println("\"");
     file.close();
+    log_i("Successfully wrote config to SD");
   }
 
   // Create modbus for CO2 sensor
@@ -530,4 +377,5 @@ void setup() {
   enterSleep(config.sleep_duration);
 }
 
-void loop() { log_fail("Why are we in the loop?", false, true); }
+void setup(){};
+// void loop() { log_fail("Why are we in the loop?", false, true); }
