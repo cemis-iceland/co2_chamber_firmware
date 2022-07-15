@@ -1,35 +1,19 @@
 #include "SCD30_MB.hpp"
 #include "config.h"
-#include "meas_format.h"
 #include "pin_assignments.h"
 #include "util.h"
 #include "webserver.h"
 
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
 #include <SD.h>
 #include <SPI.h>
-#include <chrono>
 #include <iomanip>
-#include <iostream>
-#include <mbcontroller.h>
 #include <sstream>
 #include <string>
 #include <sys/time.h>
-extern "C" {
-#include "bootloader_random.h"
-}
-#include <DNSServer.h>
-#include <DallasTemperature.h>
-#include <OneWire.h>
-#include <Preferences.h>
-#include <json11.hpp>
-#include <rom/rtc.h>
-#ifdef ESP32
-#include <AsyncTCP.h>
-#include <WiFi.h>
-#endif
-#include "ESPAsyncWebServer.h"
 
 /*
  * Functionality:
