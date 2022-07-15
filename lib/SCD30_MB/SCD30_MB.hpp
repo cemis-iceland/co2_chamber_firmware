@@ -13,6 +13,9 @@ typedef struct SCD30_measurement {
 
 enum class scd30_err_t { OK = 0, INVALID_RESPONSE, TIMEOUT };
 
+/** Class to interface with SCD30 CO2 sensor over modbus.
+ * Takes a modbus instance that should be initialized at 19200 baud in 8N1 mode
+ */
 class SCD30_MB {
 public:
   SCD30_MB(){};

@@ -215,6 +215,7 @@
                   <label for="lat">Lat: </label>
                   <input
                     type="number"
+                    step="any"
                     id="lat"
                     name="lat"
                     placeholder="e.g. 64.1369"
@@ -225,6 +226,7 @@
                   <label for="lon">Lon: </label>
                   <input
                     type="number"
+                    step="any"
                     id="lon"
                     name="lon"
                     placeholder="e.g. -21.9452"
@@ -365,15 +367,16 @@
     //var filesizes = [25.6, 2487.6, 57, ] // for debugging
 
     function humanFileSize(size) {
-    var i = Math.floor( Math.log(size) / Math.log(1024));
-    return ( size / Math.pow(1024, i) ).toFixed(2) * 1 + ' ' + ['B','kB', 'MB', 'GB', 'TB'][i];
+      var i = Math.floor(Math.log(size) / Math.log(1024));
+      return (size / Math.pow(1024, i)).toFixed(2) * 1 + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
     };
 
     let ul = document.getElementById("filelist")
     files.forEach((filename, i) => {
       let size = filesizes[i]
       let li = document.createElement("li");
-      li.innerHTML = `<a href="data/${filename}" download="${filename}">${filename} \u2B73 </a><span>${humanFileSize(size)}</span>`
+      li.innerHTML =
+        `<a href="data/${filename}" download="${filename}">${filename} </a><span>${humanFileSize(size)}</span>`
       ul.prepend(li);
     })
 

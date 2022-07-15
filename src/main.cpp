@@ -43,7 +43,6 @@ extern "C" {
 
 // Settings
 #define CONTINUE_WITHOUT_SD false
-#define CONF_FILE "/chamber_conf.json"
 #define LOGFILE_PREFIX "/data/measurements_"
 #define LOGFILE_POSTFIX ".csv"
 
@@ -54,26 +53,22 @@ Config config;
 RTC_DATA_ATTR bool experimentOngoing = false;
 
 // Sensor instances
-SCD30_MB scd30;
 OneWire oneWire(PIN_TEMP_SENSOR);
 DallasTemperature soil_temp(&oneWire);
 
-Adafruit_BME280 bme280{};
-auto bme_temp = bme280.getTemperatureSensor();
-auto bme_pres = bme280.getPressureSensor();
-auto bme_hume = bme280.getHumiditySensor();
-
-Preferences preferences;
-
-// Create strings for logging data
+// Create strings for logging data in long format
+// about long format data: https://www.statology.org/long-vs-wide-data/
 const std::string delim = ","; // Csv column delimiter
 const std::string sep = ".";   // Decimal seperator
 const auto header = "time" + delim + "variable" + delim + "value";
+/** Logs an integer to ss in long format (time, variable, value) */
 std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
                             std::string variable, std::string value) {
   ss << time << delim << variable << delim << value << '\n';
   return ss;
 }
+/** Logs a float to ss in long format (time, variable, value).
+ * Optionally specify the number of digits to use with the precision param. */
 std::stringstream& fmt_meas(std::string time, std::stringstream& ss,
                             std::string variable, float value,
                             int precision = 8) {
@@ -88,28 +83,43 @@ static TaskHandle_t measure_soil = NULL;
 static SemaphoreHandle_t SD_mutex;
 
 void measure_co2_task(void* parameter) {
+  // Set up SCD30 CO2 sensor
+  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+  auto mb = Modbus(&Serial1);
+  SCD30_MB scd30;
+  scd30 = SCD30_MB(&mb);
+  scd30.set_meas_interval(config.co2_interval);
+  scd30.start_cont_measurements(0x0000);
+
+  // Set up BME280 temperature/pressure/humidity sensor
+  Adafruit_BME280 bme280{};
+  auto bme_temp = bme280.getTemperatureSensor();
+  auto bme_pres = bme280.getPressureSensor();
+  auto bme_hume = bme280.getHumiditySensor();
+  log_fail("I2C initialization...", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
+  log_fail("BME280 Initialization...", bme280.begin(0x76, &Wire), true);
+
+  // Measure
   while (true) {
     std::stringstream ss{""};
     std::string time = timestamp();
 
-    // Read sensor values from SCD30
+    // Make sure SCD30 has fresh data (only an issue at meas rate > 2/s)
     bool scdReady = false;
-    // Wait until SCD30 is ready
     while (!scdReady) {
       scd30.data_ready(&scdReady);
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-    if (scdReady) {
-      SCD30_Measurement scd30_meas;
-      scd30.read_measurement(&scd30_meas);
-      fmt_meas(time, ss, "scd30_co2", scd30_meas.co2);
-      fmt_meas(time, ss, "scd30_temperature", scd30_meas.temperature);
-      fmt_meas(time, ss, "scd30_humidity", scd30_meas.humidity_percent);
+      vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    // Read BME280 environmental data
+    // Read sensor values from SCD30 and add them into ss
+    SCD30_Measurement scd30_meas;
+    scd30.read_measurement(&scd30_meas);
+    fmt_meas(time, ss, "scd30_co2", scd30_meas.co2);
+    fmt_meas(time, ss, "scd30_temperature", scd30_meas.temperature);
+    fmt_meas(time, ss, "scd30_humidity", scd30_meas.humidity_percent);
+
+    // Read BME280 environmental data and add it into ss
     sensors_event_t temp_1, hume_1, pres_1;
-
     bme_temp->getEvent(&temp_1);
     bme_hume->getEvent(&hume_1);
     bme_pres->getEvent(&pres_1);
@@ -117,14 +127,8 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_humidity", hume_1.relative_humidity);
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
-    // Log data for debugging
-    // log_d("%s", ss.str().c_str());
-
-    while (xSemaphoreTake(SD_mutex, portMAX_DELAY) != pdTRUE) {
-      vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-
     // Save data to file
+    xSemaphoreTake(SD_mutex, portMAX_DELAY);
     auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
     if (!file) {
       log_e("Failed to open file %s", config.logfilename.c_str());
@@ -134,31 +138,31 @@ void measure_co2_task(void* parameter) {
       file.flush();
     }
     file.close();
-
     xSemaphoreGive(SD_mutex);
+
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
 
+/** Task that measures soil temperature and moisture at a set interval */
 void measure_soil_task(void* parameter) {
   while (true) {
     std::stringstream ss{""};
     std::string time = timestamp();
+
+    // Measure soil temperature
     soil_temp.requestTemperatures();
     float temperature = soil_temp.getTempCByIndex(0);
+
+    // Measure soil moisture
     int soil_moisture = analogRead(PIN_MOIST_SENSOR);
 
+    // Format measurements
     fmt_meas(time, ss, "soil_temperature", temperature, 5);
     fmt_meas(time, ss, "soil_moisture", soil_moisture);
 
-    // Log data for debugging
-    // log_d("%s", ss.str().c_str());
-
-    while (xSemaphoreTake(SD_mutex, 0) != pdTRUE) {
-      vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-
     // Save data to file
+    xSemaphoreTake(SD_mutex, portMAX_DELAY);
     auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
     if (!file) {
       log_e("Failed to open file %s", config.logfilename.c_str());
@@ -168,8 +172,8 @@ void measure_soil_task(void* parameter) {
       file.flush();
     }
     file.close();
-
     xSemaphoreGive(SD_mutex);
+
     vTaskDelay(config.soil_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
@@ -255,7 +259,6 @@ void setup() {
   }
   */
 
-  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   Serial.begin(115200);
 
   // Set up SD card
@@ -304,7 +307,7 @@ void setup() {
       log_fail("SD Card failed to open!", false,
                true); // If we don't have a file we stop
     file.println(header.c_str());
-    file.print("\"Notes:");
+    file.print((delim + "\"Notes:").c_str());
     file.print(config.location_notes.c_str());
     file.println("\"");
     file.close();
@@ -318,18 +321,6 @@ void setup() {
     log_i("Starting from deep sleep...");
     config.restore();
   }
-
-  // Create modbus for CO2 sensor
-  static auto mb = Modbus(&Serial1);
-
-  // Configure SCD30s
-  scd30 = SCD30_MB(&mb);
-  scd30.set_meas_interval();
-  scd30.start_cont_measurements(0x0000);
-
-  // Set up I2C peripherals
-  log_fail("I2C initialization...      ", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 Initialization... ", bme280.begin(0x76, &Wire), true);
 
   // Set up DS18B20 temperature sensor
   soil_temp.begin();
