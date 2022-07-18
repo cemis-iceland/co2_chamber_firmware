@@ -24,7 +24,7 @@ public:
   }
 };
 
-// Return a comma seperated list of data files on the sd card
+// Return a comma seperated list of data filenames or sizes on the sd card
 String index_filelist(bool size = false) {
   auto root = SD.open("/data");
   auto ss = std::stringstream{};
@@ -43,7 +43,7 @@ String index_filelist(bool size = false) {
   return String(ss.str().c_str());
 }
 
-// Replace %PLACEHOLDERS% in index.html with real values
+// Replace @PLACEHOLDERS@ in index.html with real values
 String index_template_processor(Config* config, const String& var) {
   log_d("index_template called with: %s", var.c_str());
   if (var == "SERIAL_NUMBER") {
@@ -66,6 +66,10 @@ String index_template_processor(Config* config, const String& var) {
     return std::to_string(config->meas_time).c_str();
   } else if (var == "postmixduration") {
     return std::to_string(config->postmix_time).c_str();
+  } else if (var == "flow_meas_time") {
+    return std::to_string(config->flow_meas_time).c_str();
+  } else if (var == "chambertype") {
+    return config->chamber_type;
   }
   return var;
 }
@@ -156,6 +160,8 @@ void web_setup_task(void* params) {
       FROM_PARAM(config->meas_time, "valvesclosedduration", .toInt());
       FROM_PARAM(config->postmix_time, "postmixduration", .toInt());
       FROM_PARAM(config->location_notes, "locnotes", .c_str());
+      FROM_PARAM(config->chamber_type, "chambertype", .c_str());
+      FROM_PARAM(config->flow_meas_time, "flow_meas_time", .toInt());
 
       req->send(200, "text_plain", "Submitted.");
 

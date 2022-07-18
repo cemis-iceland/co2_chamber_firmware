@@ -5,6 +5,55 @@
 #include <Preferences.h>
 #include <nvs_flash.h>
 
+// Save configuration to non-volatile storage using the Preferences library
+void Config::save() {
+  // WARNING: Max key length is 15 characters
+  Preferences pref{};
+  pref.begin("chamberconf"); // Make this a parameter?
+  pref.putFloat("latitude", latitude);
+  pref.putFloat("longitude", longitude);
+  pref.putInt("warmup_time", warmup_time);
+  pref.putInt("premix_time", premix_time);
+  pref.putInt("meas_time", meas_time);
+  pref.putInt("postmix_time", postmix_time);
+  pref.putInt("co2_interval", co2_interval);
+  pref.putInt("soil_interval", soil_interval);
+  pref.putInt("sleep_duration", sleep_duration);
+  pref.putString("logfilename", logfilename);
+  pref.putString("serial_number", serial_number);
+  pref.putInt("flow_meas_time", flow_meas_time);
+  pref.putString("chamber_type", chamber_type);
+  pref.end();
+}
+
+// Restore configuration from non-volatile storage
+void Config::restore() {
+  // ^\W*(.+?),(.+?)\);
+  // $2 = $1,$2);
+  Preferences pref{};
+  pref.begin("chamberconf");
+  latitude = pref.getFloat("latitude", latitude);
+  longitude = pref.getFloat("longitude", longitude);
+  warmup_time = pref.getInt("warmup_time", warmup_time);
+  premix_time = pref.getInt("premix_time", premix_time);
+  meas_time = pref.getInt("meas_time", meas_time);
+  postmix_time = pref.getInt("postmix_time", postmix_time);
+  co2_interval = pref.getInt("co2_interval", co2_interval);
+  soil_interval = pref.getInt("soil_interval", soil_interval);
+  sleep_duration = pref.getInt("sleep_duration", sleep_duration);
+  logfilename = pref.getString("logfilename", logfilename);
+  serial_number = pref.getString("serial_number", serial_number);
+  flow_meas_time = pref.getInt("flow_meas_time", flow_meas_time);
+  chamber_type = pref.getString("chamber_type", chamber_type);
+  pref.end();
+}
+
+// Clear nvs (for testing)
+void Config::clear() {
+  nvs_flash_erase();
+  nvs_flash_init();
+}
+
 /* Returns current configuration as a JSON string */
 std::string Config::dumps() {
   json11::Json configuration =
@@ -19,10 +68,13 @@ std::string Config::dumps() {
                            {"soil_interval", this->soil_interval},
                            {"sleep_duration", this->sleep_duration},
                            {"log_file_name", this->logfilename},
-                           {"location_notes", this->location_notes}};
+                           {"location_notes", this->location_notes},
+                           {"flow_meas_time", this->flow_meas_time},
+                           {"chamber_type", this->chamber_type}};
   return configuration.dump();
 }
 
+///@deprecated
 void Config::readFrom(FS& fs, const char* path) {
   if (!fs.exists(path)) {
     log_i("File %s doesn't exist, NOT creating default file", path);
@@ -61,7 +113,7 @@ void Config::readFrom(FS& fs, const char* path) {
     log_e("Read configuration file of unsupported version");
   }
 }
-
+///@deprecated
 void Config::writeTo(FS& fs, const char* path) {
   log_i("Creating file %s", path);
   fs.remove(path);
@@ -71,64 +123,7 @@ void Config::writeTo(FS& fs, const char* path) {
     log_fail("SD Card failed to open!", false, true);
   }
   // Write config to file
-  json11::Json configuration =
-      json11::Json::object{{"version", (int)1},
-                           {"latitude", this->latitude},
-                           {"longitude", this->longitude},
-                           {"warmup_time", this->warmup_time},
-                           {"premix_time", this->premix_time},
-                           {"meas_time", this->meas_time},
-                           {"postmix_time", this->postmix_time},
-                           {"co2_interval", this->co2_interval},
-                           {"soil_interval", this->soil_interval},
-                           {"sleep_duration", this->sleep_duration},
-                           {"log_file_name", this->logfilename}};
-  std::string conf_str = configuration.dump();
+  std::string conf_str = this->dumps();
   file.write((const uint8_t*)conf_str.data(), conf_str.length());
   file.close();
-}
-
-// Save configuration to non-volatile storage using the Preferences library
-void Config::save() {
-  // WARNING: Max key length is 15 characters
-  Preferences pref{};
-  pref.begin("chamberconf"); // Make this a parameter?
-  pref.putFloat("latitude", latitude);
-  pref.putFloat("longitude", longitude);
-  pref.putInt("warmup_time", warmup_time);
-  pref.putInt("premix_time", premix_time);
-  pref.putInt("meas_time", meas_time);
-  pref.putInt("postmix_time", postmix_time);
-  pref.putInt("co2_interval", co2_interval);
-  pref.putInt("soil_interval", soil_interval);
-  pref.putInt("sleep_duration", sleep_duration);
-  pref.putString("logfilename", logfilename);
-  pref.putString("serial_number", serial_number);
-  pref.end();
-}
-
-// Restore configuration from non-volatile storage
-void Config::restore() {
-  // ^\W*(.+?),(.+?)\);
-  // $2 = $1,$2);
-  Preferences pref{};
-  pref.begin("chamberconf");
-  latitude = pref.getFloat("latitude", latitude);
-  longitude = pref.getFloat("longitude", longitude);
-  warmup_time = pref.getInt("warmup_time", warmup_time);
-  premix_time = pref.getInt("premix_time", premix_time);
-  meas_time = pref.getInt("meas_time", meas_time);
-  postmix_time = pref.getInt("postmix_time", postmix_time);
-  co2_interval = pref.getInt("co2_interval", co2_interval);
-  soil_interval = pref.getInt("soil_interval", soil_interval);
-  sleep_duration = pref.getInt("sleep_duration", sleep_duration);
-  logfilename = pref.getString("logfilename", logfilename);
-  serial_number = pref.getString("serial_number", serial_number);
-  pref.end();
-}
-
-// Clear nvs (for testing)
-void Config::clear() {
-  nvs_flash_erase();
-  nvs_flash_init();
 }

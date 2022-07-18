@@ -24,9 +24,10 @@
       button,
       input,
       select,
-      textarea {
+      textarea,
+      select {
         font-family: inherit;
-        font-size: 100%%;
+        font-size: 100%;
       }
 
       form {
@@ -56,18 +57,22 @@
       }
 
       input,
-      textarea {
-        width: 100%%;
+      textarea,
+      select {
+        width: 100%;
         display: block;
       }
 
-      input {
+      input, select {
         flex-shrink: 1;
         min-width: 1cm;
         height: 1.5rem;
+        padding: .25rem 0;
         border-color: gray;
         border-width: 1px;
         border-radius: 2px;
+        background-color: white;
+        box-sizing: content-box;
       }
 
       input:invalid {
@@ -140,13 +145,14 @@
         width: max-content;
         flex-shrink: 0;
       }
+
     </style>
   </head>
 
   <body>
     <!-- Data download -->
     <header>
-      <h2>Mælibúr nr: <span id="serialnumber">%SERIAL_NUMBER%</span></h2>
+      <h2>Mælibúr nr: <span id="serialnumber">@SERIAL_NUMBER@</span></h2>
     </header>
     <section>
       <fieldset>
@@ -176,7 +182,7 @@
               justify-content: space-between;
             "
           >
-            <button style="width: 30%%">Cancel</button>
+            <button style="width: 30%">Cancel</button>
             <a href="deleteall"
               ><button type="button" style="background-color: red">
                 Delete all
@@ -244,38 +250,63 @@
             </div>
           </fieldset>
 
-          <div class="formrow" style="margin-top: 16px">
-            <label for="co2interval">Measure every [min]:</label>
-            <input
-              type="number"
-              id="co2interval"
-              name="co2interval"
-              placeholder="e.g. 180"
-              required
-            />
+          <div class="formrow"  style="margin-top: 16px">
+            <label for="chambertype">Chamber type:</label>
+            <select
+                    id="chambertype" 
+                    name="chambertype" 
+                    onchange="chamb_type_onchange();"
+                    value="valve">
+              <option value="valve">Valve (Smelliloka)</option>
+              <option value="flow">Flow (Flæðibúr)</option>
+            </select>
           </div>
+
           <div class="formrow">
             <label for="co2lograte">CO2 Logging rate [sec]:</label>
             <input
-              type="number"
-              name="co2lograte"
-              id="co2lograte"
-              placeholder="e.g. 20"
+            type="number"
+            name="co2lograte"
+            id="co2lograte"
+            placeholder="e.g. 20"
               required
-            />
-          </div>
-          <div class="formrow">
-            <label for="soillograte">Soil Logging rate [sec]:</label>
-            <input
+              />
+            </div>
+            <div class="formrow">
+              <label for="soillograte">Soil Logging rate [sec]:</label>
+              <input
               type="number"
               name="soillograte"
               id="soillograte"
               placeholder="e.g. 20"
               required
-            />
-          </div>
+              />
+            </div>
+            
+            <div class="formrow">
+              <label for="co2interval">Measure every [min]:</label>
+              <input
+                type="number"
+                id="co2interval"
+                name="co2interval"
+                placeholder="e.g. 180"
+                required
+              />
+            </div>
 
-          <fieldset>
+            <div class="formrow" id="flow">
+              <label for="flow_meas_time">Measure for [s]:</label>
+              <input
+                type="number"
+                id="flow_meas_time"
+                name="flow_meas_time"
+                placeholder="e.g. 600"
+                required
+              />
+            </div>
+            
+
+          <fieldset id="smelliloka">
             <legend>Durations</legend>
             <div class="formrow">
               <label for="warmupduration">Warmup [sec]:</label>
@@ -317,20 +348,20 @@
                 required
               />
             </div>
-            <div style="width: 100%%; display: flex; flex-direction: column">
+            <div style="width: 100%; display: flex; flex-direction: column">
               <div class="graphicline">
                 <span>Warmup</span><span style="color: grey">Sensors on</span
                 ><span></span>
               </div>
-              <div class="graphicline" style="margin-left: 20%%">
+              <div class="graphicline" style="margin-left: 20%">
                 <span>Premix</span><span style="color: grey">Fan on</span
                 ><span>Postmix</span>
               </div>
               <div
                 class="graphicline"
                 style="
-                  margin-left: 40%%;
-                  margin-right: 20%%;
+                  margin-left: 40%;
+                  margin-right: 20%;
                   justify-content: space-around;
                 "
               >
@@ -357,11 +388,31 @@
       </form>
     </section>
   </body>
+<script>
+  // Displays correct form elements depending on type of chamber
+  function chamb_type_onchange() {
+    val = document.getElementById("chambertype").value;
+    valvefs = document.getElementById("smelliloka");
+    flowfs = document.getElementById("flow");
+    if(val == "valve"){
+      valvefs.style.display = "flex";
+    } else {
+      valvefs.style.display = "none";
+    }
+    if(val == "flow"){
+      flowfs.style.display = "flex";
+    } else {
+      flowfs.style.display = "none";
+    }
+  }
+  chamb_type_onchange(); // initial
+</script>
+
   <script>
     // Populates list of files.
 
-    var files = [ %filelist% ] //prettier-ignore
-    var filesizes = [ %sizelist% ] //prettier-ignore
+    var files = [ @filelist@ ] //prettier-ignore
+    var filesizes = [ @sizelist@ ] //prettier-ignore
 
     //var files = ["file1", "file2", "file3", ] // for debugging
     //var filesizes = [25.6, 2487.6, 57, ] // for debugging
@@ -386,13 +437,15 @@
 
   <script>
     // Prefills form fields with loaded values.
-    document.getElementById("co2interval").value = "%co2interval%";
-    document.getElementById("co2lograte").value = "%co2lograte%";
-    document.getElementById("soillograte").value = "%soillograte%";
-    document.getElementById("warmupduration").value = "%warmupduration%";
-    document.getElementById("premixduration").value = "%premixduration%";
+    document.getElementById("co2interval").value = "@co2interval@";
+    document.getElementById("co2lograte").value = "@co2lograte@";
+    document.getElementById("soillograte").value = "@soillograte@";
+    document.getElementById("warmupduration").value = "@warmupduration@";
+    document.getElementById("premixduration").value = "@premixduration@";
     document.getElementById("valvesclosedduration").value =
-      "%valvesclosedduration%";
-    document.getElementById("postmixduration").value = "%postmixduration%";
+      "@valvesclosedduration@";
+    document.getElementById("postmixduration").value = "@postmixduration@";
+    document.getElementById("flow_meas_time").value = "@flow_meas_time@";
+    document.getElementById("chambertype").value = "@chambertype@";
   </script>
 </html>
