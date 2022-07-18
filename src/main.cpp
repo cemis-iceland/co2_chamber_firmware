@@ -18,11 +18,10 @@
 /*
  * Functionality:
  * - Start and check reset reason
- * - Read contents from or create config file on SD
+ * - Read contents from or create config in non volatile storage
  * - Serve webpage
- * - Write input data from webpage into config file
+ * - Write input data from webpage into config
  * - Start measurement cycle
- * - Check battery voltage and sleep indefinitely if voltage too low
  */
 
 // Settings
@@ -37,8 +36,6 @@ Config config;
 RTC_DATA_ATTR bool experimentOngoing = false;
 
 // Sensor instances
-OneWire oneWire(PIN_TEMP_SENSOR);
-DallasTemperature soil_temp(&oneWire);
 
 // Create strings for logging data in long format
 // about long format data: https://www.statology.org/long-vs-wide-data/
@@ -130,6 +127,11 @@ void measure_co2_task(void* parameter) {
 
 /** Task that measures soil temperature and moisture at a set interval */
 void measure_soil_task(void* parameter) {
+  // Set up sensors
+  OneWire oneWire(PIN_TEMP_SENSOR);
+  DallasTemperature soil_temp(&oneWire);
+  soil_temp.begin();
+
   while (true) {
     std::stringstream ss{""};
     std::string time = timestamp();
@@ -287,13 +289,12 @@ void setup() {
     if (!SD.exists("/data")) SD.mkdir("/data");
     log_i("Creating file %s", config.logfilename.c_str());
     auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
-    if (!file)
-      log_fail("SD Card failed to open!", false,
-               true); // If we don't have a file we stop
+    if (!file) {
+      log_e("SD Card failed to open!");
+      for (;;) {}; // If we don't have a file we stop
+    }
+    file.println(config.dumps().c_str()); // Embed configuration
     file.println(header.c_str());
-    file.print((delim + "\"Notes:").c_str());
-    file.print(config.location_notes.c_str());
-    file.println("\"");
     file.close();
 
     // Save configuration to internal storage
@@ -305,9 +306,6 @@ void setup() {
     log_i("Starting from deep sleep...");
     config.restore();
   }
-
-  // Set up DS18B20 temperature sensor
-  soil_temp.begin();
 
   vTaskDelay(100 / portTICK_PERIOD_MS);
 

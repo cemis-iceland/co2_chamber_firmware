@@ -5,6 +5,24 @@
 #include <Preferences.h>
 #include <nvs_flash.h>
 
+/* Returns current configuration as a JSON string */
+std::string Config::dumps() {
+  json11::Json configuration =
+      json11::Json::object{{"version", (int)1},
+                           {"latitude", this->latitude},
+                           {"longitude", this->longitude},
+                           {"warmup_time", this->warmup_time},
+                           {"premix_time", this->premix_time},
+                           {"meas_time", this->meas_time},
+                           {"postmix_time", this->postmix_time},
+                           {"co2_interval", this->co2_interval},
+                           {"soil_interval", this->soil_interval},
+                           {"sleep_duration", this->sleep_duration},
+                           {"log_file_name", this->logfilename},
+                           {"location_notes", this->location_notes}};
+  return configuration.dump();
+}
+
 void Config::readFrom(FS& fs, const char* path) {
   if (!fs.exists(path)) {
     log_i("File %s doesn't exist, NOT creating default file", path);

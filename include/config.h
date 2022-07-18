@@ -21,7 +21,7 @@ struct Config {
   String logfilename = "temp.csv"; // File where measurements are stored.
   String serial_number = "";       // Serial number of the chamber
 
-  // NOT SERIALIZED
+  // Not restored by restore();
   String location_notes = "";
 
   /** Save the current configuration to non-volatile internal storage */
@@ -34,6 +34,9 @@ struct Config {
    * Warning: also clears everything else from non-volatile storage
    * Warning: Doesn't clear the members of the config object */
   void clear();
+
+  /* Return the current configuration as a JSON string */
+  std::string dumps();
 
   /* Attempt to parse the configuration file at path on the given filesystem */
   void readFrom(FS& fs, const char* path);
