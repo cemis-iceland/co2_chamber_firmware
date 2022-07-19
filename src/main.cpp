@@ -1,4 +1,5 @@
 #include "SCD30_MB.hpp"
+#include "board.h"
 #include "config.h"
 #include "pin_assignments.h"
 #include "util.h"
@@ -175,29 +176,17 @@ void enterWarmup() {
 
 void enterPremix() {
   log_i("Entering premix");
-  digitalWrite(PIN_FAN, HIGH);
+  board::fan_on();
 }
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
-  digitalWrite(PIN_VALVE_1_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_1_FWD, LOW);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_2_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_2_FWD, LOW);
+  board::close_valves();
 }
 
 void enterPostmix() {
   log_i("Entering postmix");
-  digitalWrite(PIN_VALVE_1_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_1_REV, LOW);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_2_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  digitalWrite(PIN_VALVE_2_REV, LOW);
+  board::open_valves();
 }
 
 void enterSleep(uint64_t sleepTime) {
@@ -205,55 +194,14 @@ void enterSleep(uint64_t sleepTime) {
   vTaskDelete(measure_co2);
   vTaskDelete(measure_soil);
   experimentOngoing = true;
-  digitalWrite(PIN_PWR_EN, LOW);
+  board::power_off();
   // esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the
   // crystal oscillator
   esp_deep_sleep((uint32_t)sleepTime * 60000000);
 }
 
-void setup() {
-  // Prepare GPIO
-  /*
-   * NOTE:
-   * During sleep the pins might go into undefined states
-   * This can be fixed by setting the RTC function of the pins
-   * This functionality NEEDS to be added for safe behaviour
-   */
-  pinMode(PIN_PWR_EN, OUTPUT);
-  pinMode(PIN_FAN, OUTPUT);
-  pinMode(PIN_STATUS_LED, OUTPUT);
-  pinMode(PIN_VALVE_1_FWD, OUTPUT);
-  pinMode(PIN_VALVE_1_REV, OUTPUT);
-  pinMode(PIN_VALVE_2_FWD, OUTPUT);
-  pinMode(PIN_VALVE_2_REV, OUTPUT);
-
-  digitalWrite(PIN_PWR_EN, HIGH);
-  digitalWrite(PIN_FAN, LOW);
-  digitalWrite(PIN_STATUS_LED, LOW);
-  digitalWrite(PIN_VALVE_1_FWD, LOW);
-  digitalWrite(PIN_VALVE_1_REV, LOW);
-  digitalWrite(PIN_VALVE_2_FWD, LOW);
-  digitalWrite(PIN_VALVE_2_REV, LOW);
-
-  // Visual indicator for reset, remove for production
-  /*
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(PIN_STATUS_LED, HIGH);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    digitalWrite(PIN_STATUS_LED, LOW);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-  }
-  */
-
-  Serial.begin(115200);
-
-  // Set up SD card
-  SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-  log_fail("SD initialization...", SD.begin(PIN_SD_CSN, SPI),
-           !CONTINUE_WITHOUT_SD);
-
-  if (!experimentOngoing) {
-    // Power on reset, run set up and configuration
+void initialConfig(){
+  // Power on reset, run set up and configuration
     log_i("Starting from POR...");
 
     // For debugging or resetting the serial number
@@ -300,6 +248,31 @@ void setup() {
     // Save configuration to internal storage
     config.save();
     log_i("Successfully saved configuration");
+}
+
+
+
+void setup() {
+  // Prepare GPIO
+  /*
+   * NOTE:
+   * During sleep the pins might go into undefined states
+   * This can be fixed by setting the RTC function of the pins
+   * This functionality NEEDS to be added for safe behaviour
+   */
+  board::setup_gpio();
+  board::power_on();
+
+  Serial.begin(115200);
+
+  // Set up SD card
+  SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
+  log_fail("SD initialization...", SD.begin(PIN_SD_CSN, SPI),
+           !CONTINUE_WITHOUT_SD);
+
+  if (!experimentOngoing) {
+    // Power on reset, need to start config website
+    initialConfig();
   } else {
     // We're waking up from deep sleep during an ongoing experiment
     // So we just need to restore the config
