@@ -37,32 +37,30 @@ void power_off() { digitalWrite(PIN_PWR_EN, LOW); }
 
 void open_valves() {
   digitalWrite(PIN_VALVE_1_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
   digitalWrite(PIN_VALVE_1_REV, LOW);
-  delay(1000);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, LOW);
   digitalWrite(PIN_VALVE_2_REV, LOW);
 }
 
 void close_valves() {
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, LOW);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
-  delay(1000);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
-  vTaskDelay(200 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, LOW);
   digitalWrite(PIN_VALVE_2_FWD, LOW);
 }

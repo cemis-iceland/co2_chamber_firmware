@@ -279,6 +279,11 @@ String selfTest() {
   ss << "DS18 Soil temp: " << (temp_ok ? "OK" : "FAIL") << std::endl;
   // Check moisture sensor?
   // TODO: Figure out a way to do that?
+  // Check valves (this is only audible/tactile, no software readback)
+  board::close_valves();
+  board::open_valves();
+  board::close_valves();
+  board::open_valves();
   ss << "Power on self test complete";
   return ss.str().c_str();
 }
