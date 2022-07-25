@@ -248,6 +248,41 @@ void initialConfig() {
   log_i("Successfully saved configuration");
 }
 
+String selfTest() {
+  std::stringstream ss{};
+  ss << "Power on self test, chamber firmware v0.2" << std::endl;
+  // Check SD
+  SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
+  bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
+  SD.end();
+  ss << "SD Card: " << (sd_ok ? "OK" : "FAIL") << std::endl;
+  // Check SCD30
+  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+  auto mb = Modbus(&Serial1);
+  SCD30_MB scd30;
+  scd30 = SCD30_MB(&mb);
+  bool scd_ok = scd30.sensor_connected();
+  ss << "SCD30 CO2: " << (scd_ok ? "OK" : "FAIL") << std::endl;
+  // Check BME280
+  bool wire_ok = Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  ss << "I2C Bus: " << (wire_ok ? "OK" : "FAIL") << std::endl;
+  Adafruit_BME280 bme280{};
+  bool bme_ok = bme280.begin(0x76, &Wire);
+  ss << "BME280 Temp/Hum/Pres: " << (bme_ok ? "OK" : "FAIL") << std::endl;
+  // Check Temperature sensor
+  OneWire oneWire(PIN_TEMP_SENSOR);
+  bool onewire_ok = oneWire.reset();
+  ss << "OneWire bus: " << (onewire_ok ? "OK" : "FAIL") << std::endl;
+  DallasTemperature soil_temp(&oneWire);
+  soil_temp.begin();
+  bool temp_ok = soil_temp.getDeviceCount() == 1;
+  ss << "DS18 Soil temp: " << (temp_ok ? "OK" : "FAIL") << std::endl;
+  // Check moisture sensor?
+  // TODO: Figure out a way to do that?
+  ss << "Power on self test complete";
+  return ss.str().c_str();
+}
+
 void setup() {
   // Prepare hardware
   board::setup_gpio();
