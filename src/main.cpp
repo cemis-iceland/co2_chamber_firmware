@@ -195,74 +195,65 @@ void enterSleep(uint64_t sleepTime) {
   vTaskDelete(measure_soil);
   experimentOngoing = true;
   board::power_off();
-  // esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF); // Turn off the
-  // crystal oscillator
-  esp_deep_sleep((uint32_t)sleepTime * 60000000);
+  esp_deep_sleep(sleepTime * 60000000);
 }
 
-void initialConfig(){
+void initialConfig() {
   // Power on reset, run set up and configuration
-    log_i("Starting from POR...");
+  log_i("Starting from POR...");
 
-    // For debugging or resetting the serial number
-    if (DEBUG_CLEAR_NVS) { config.clear(); };
+  // For debugging or resetting the serial number
+  if (DEBUG_CLEAR_NVS) { config.clear(); };
 
-    // Check if we have a serial number, if not, prompt for one.
-    config.restore();
-    if (config.serial_number == "") {
-      log_e("Serial number is unset, please provide valid serial number");
-      Serial.print("Enter serial number> ");
-      config.serial_number = readLine().c_str();
-    }
+  // Check if we have a serial number, if not, prompt for one.
+  config.restore();
+  if (config.serial_number == "") {
+    log_e("Serial number is unset, please provide valid serial number");
+    Serial.print("Enter serial number> ");
+    config.serial_number = readLine().c_str();
+  }
 
-    // TODO: Could we just call web setup directly?
-    //  Start web setup
-    SemaphoreHandle_t web_setup_done = xSemaphoreCreateBinary();
-    auto web_params = web_setup_task_params_t{};
-    web_params.web_setup_done = web_setup_done;
-    web_params.config = &config;
-    web_params.timeout = 15 * 60; // timeout in 15 minutes
-    TaskHandle_t web_setup;
-    xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, &web_params, 10,
-                            &web_setup, 1);
-    // Wait until web setup succeeds or times out.
-    xSemaphoreTake(web_setup_done, portMAX_DELAY);
-    vTaskDelete(web_setup);
-    vSemaphoreDelete(web_setup_done);
-    log_i("Web setup finished...");
+  // TODO: Could we just call web setup directly?
+  //  Start web setup
+  SemaphoreHandle_t web_setup_done = xSemaphoreCreateBinary();
+  auto web_params = web_setup_task_params_t{};
+  web_params.web_setup_done = web_setup_done;
+  web_params.config = &config;
+  web_params.timeout = 15 * 60; // timeout in 15 minutes
+  TaskHandle_t web_setup;
+  xTaskCreatePinnedToCore(web_setup_task, "web-setup", 16384, &web_params, 10,
+                          &web_setup, 1);
+  // Wait until web setup succeeds or times out.
+  xSemaphoreTake(web_setup_done, portMAX_DELAY);
+  vTaskDelete(web_setup);
+  vSemaphoreDelete(web_setup_done);
+  log_i("Web setup finished...");
 
-    // Create new file for measurements
-    config.logfilename = LOGFILE_PREFIX + config.serial_number + "_" +
-                         timestamp().c_str() + LOGFILE_POSTFIX;
-    if (!SD.exists("/data")) SD.mkdir("/data");
-    log_i("Creating file %s", config.logfilename.c_str());
-    auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
-    if (!file) {
-      log_e("SD Card failed to open!");
-      for (;;) {}; // If we don't have a file we stop
-    }
-    file.println(config.dumps().c_str()); // Embed configuration
-    file.println(header.c_str());
-    file.close();
+  // Create new file for measurements
+  config.logfilename = LOGFILE_PREFIX + config.serial_number + "_" +
+                       timestamp().c_str() + LOGFILE_POSTFIX;
+  if (!SD.exists("/data")) SD.mkdir("/data");
+  log_i("Creating file %s", config.logfilename.c_str());
+  auto file = SD.open(config.logfilename.c_str(), FILE_WRITE);
+  if (!file) {
+    log_e("SD Card failed to open!");
+    for (;;) {}; // If we don't have a file we stop
+  }
+  file.println(config.dumps().c_str()); // Embed configuration
+  file.println(header.c_str());
+  file.close();
 
-    // Save configuration to internal storage
-    config.save();
-    log_i("Successfully saved configuration");
+  // Save configuration to internal storage
+  config.save();
+  log_i("Successfully saved configuration");
 }
-
-
 
 void setup() {
-  // Prepare GPIO
-  /*
-   * NOTE:
-   * During sleep the pins might go into undefined states
-   * This can be fixed by setting the RTC function of the pins
-   * This functionality NEEDS to be added for safe behaviour
-   */
+  // Prepare hardware
   board::setup_gpio();
   board::power_on();
 
+  // Serial debug logging
   Serial.begin(115200);
 
   // Set up SD card
@@ -281,20 +272,22 @@ void setup() {
   }
 
   vTaskDelay(100 / portTICK_PERIOD_MS);
-
   enterWarmup();
-  vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
-  enterPremix();
-  vTaskDelay(config.premix_time * 1000 / portTICK_PERIOD_MS);
-  enterValvesClosed();
-  vTaskDelay(config.meas_time * 1000 / portTICK_PERIOD_MS);
-  enterPostmix();
-  vTaskDelay(config.postmix_time * 1000 / portTICK_PERIOD_MS);
+  if (config.chamber_type == "valve") { // TODO: refactor magic string
+    vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
+    enterPremix();
+    vTaskDelay(config.premix_time * 1000 / portTICK_PERIOD_MS);
+    enterValvesClosed();
+    vTaskDelay(config.meas_time * 1000 / portTICK_PERIOD_MS);
+    enterPostmix();
+    vTaskDelay(config.postmix_time * 1000 / portTICK_PERIOD_MS);
+  } else {
+    delay(config.flow_meas_time);
+  }
   enterSleep(config.sleep_duration);
 }
 
 void loop() {
   log_e("Why are we in the loop?");
-  for (;;)
-    ;
+  for (;;) {};
 }
