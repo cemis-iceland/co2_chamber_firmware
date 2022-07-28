@@ -28,6 +28,8 @@ struct Config {
 
   // Not restored by restore();
   String location_notes = "";
+  // Not restored by restore();
+  String poweronselftest = ""; // TODO: this needs a better home
 
   /** Save the current configuration to non-volatile internal storage */
   void save();

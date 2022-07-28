@@ -250,7 +250,7 @@ void initialConfig() {
 
 String selfTest() {
   std::stringstream ss{};
-  ss << "Power on self test, chamber firmware v0.2" << std::endl;
+  ss << "Power on self test\nChamber firmware v0.2" << std::endl;
   // Check SD
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
   bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
@@ -295,6 +295,9 @@ void setup() {
 
   // Serial debug logging
   Serial.begin(115200);
+
+  config.poweronselftest = selfTest();
+  log_i("%s", config.poweronselftest);
 
   // Set up SD card
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);

@@ -70,6 +70,8 @@ String index_template_processor(Config* config, const String& var) {
     return std::to_string(config->flow_meas_time).c_str();
   } else if (var == "chambertype") {
     return config->chamber_type;
+  } else if (var == "poweronselftest") {
+    return config->poweronselftest;
   }
   return var;
 }

@@ -63,11 +63,12 @@
         display: block;
       }
 
-      input, select {
+      input,
+      select {
         flex-shrink: 1;
         min-width: 1cm;
         height: 1.5rem;
-        padding: .25rem 0;
+        padding: 0.25rem 0;
         border-color: gray;
         border-width: 1px;
         border-radius: 2px;
@@ -145,7 +146,6 @@
         width: max-content;
         flex-shrink: 0;
       }
-
     </style>
   </head>
 
@@ -155,6 +155,7 @@
       <h2>Mælibúr nr: <span id="serialnumber">@SERIAL_NUMBER@</span></h2>
     </header>
     <section>
+      <!-- Data download -->
       <fieldset>
         <legend>Download data</legend>
         <ul id="filelist">
@@ -193,6 +194,14 @@
       </fieldset>
     </section>
     <section>
+      <!-- POST result -->
+      <fieldset>
+        <legend>Power On Self Test</legend>
+        <pre>@poweronselftest@</pre>
+      </fieldset>
+    </section>
+    <section>
+      <!-- Configure and start experiment -->
       <form autocomplete="off" action="start">
         <fieldset>
           <legend>Configure and start experiment</legend>
@@ -250,13 +259,14 @@
             </div>
           </fieldset>
 
-          <div class="formrow"  style="margin-top: 16px">
+          <div class="formrow" style="margin-top: 16px">
             <label for="chambertype">Chamber type:</label>
             <select
-                    id="chambertype" 
-                    name="chambertype" 
-                    onchange="chamb_type_onchange();"
-                    value="valve">
+              id="chambertype"
+              name="chambertype"
+              onchange="chamb_type_onchange();"
+              value="valve"
+            >
               <option value="valve">Valve (Smelliloka)</option>
               <option value="flow">Flow (Flæðibúr)</option>
             </select>
@@ -265,46 +275,45 @@
           <div class="formrow">
             <label for="co2lograte">CO2 Logging rate [sec]:</label>
             <input
-            type="number"
-            name="co2lograte"
-            id="co2lograte"
-            placeholder="e.g. 20"
+              type="number"
+              name="co2lograte"
+              id="co2lograte"
+              placeholder="e.g. 20"
               required
-              />
-            </div>
-            <div class="formrow">
-              <label for="soillograte">Soil Logging rate [sec]:</label>
-              <input
+            />
+          </div>
+          <div class="formrow">
+            <label for="soillograte">Soil Logging rate [sec]:</label>
+            <input
               type="number"
               name="soillograte"
               id="soillograte"
               placeholder="e.g. 20"
               required
-              />
-            </div>
-            
-            <div class="formrow">
-              <label for="co2interval">Measure every [min]:</label>
-              <input
-                type="number"
-                id="co2interval"
-                name="co2interval"
-                placeholder="e.g. 180"
-                required
-              />
-            </div>
+            />
+          </div>
 
-            <div class="formrow" id="flow">
-              <label for="flow_meas_time">Measure for [s]:</label>
-              <input
-                type="number"
-                id="flow_meas_time"
-                name="flow_meas_time"
-                placeholder="e.g. 600"
-                required
-              />
-            </div>
-            
+          <div class="formrow">
+            <label for="co2interval">Measure every [min]:</label>
+            <input
+              type="number"
+              id="co2interval"
+              name="co2interval"
+              placeholder="e.g. 180"
+              required
+            />
+          </div>
+
+          <div class="formrow" id="flow">
+            <label for="flow_meas_time">Measure for [s]:</label>
+            <input
+              type="number"
+              id="flow_meas_time"
+              name="flow_meas_time"
+              placeholder="e.g. 600"
+              required
+            />
+          </div>
 
           <fieldset id="smelliloka">
             <legend>Durations</legend>
@@ -388,25 +397,25 @@
       </form>
     </section>
   </body>
-<script>
-  // Displays correct form elements depending on type of chamber
-  function chamb_type_onchange() {
-    val = document.getElementById("chambertype").value;
-    valvefs = document.getElementById("smelliloka");
-    flowfs = document.getElementById("flow");
-    if(val == "valve"){
-      valvefs.style.display = "flex";
-    } else {
-      valvefs.style.display = "none";
+  <script>
+    // Displays correct form elements depending on type of chamber
+    function chamb_type_onchange() {
+      val = document.getElementById("chambertype").value;
+      valvefs = document.getElementById("smelliloka");
+      flowfs = document.getElementById("flow");
+      if (val == "valve") {
+        valvefs.style.display = "flex";
+      } else {
+        valvefs.style.display = "none";
+      }
+      if (val == "flow") {
+        flowfs.style.display = "flex";
+      } else {
+        flowfs.style.display = "none";
+      }
     }
-    if(val == "flow"){
-      flowfs.style.display = "flex";
-    } else {
-      flowfs.style.display = "none";
-    }
-  }
-  chamb_type_onchange(); // initial
-</script>
+    chamb_type_onchange(); // initial
+  </script>
 
   <script>
     // Populates list of files.
