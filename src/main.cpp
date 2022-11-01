@@ -251,13 +251,14 @@ void initialConfig() {
 String selfTest() {
   std::stringstream ss{};
   ss << "Power on self test\nChamber firmware v0.2" << std::endl;
+  // Set up serial port for SCD30
+  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
   bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
   SD.end();
   ss << "SD Card: " << (sd_ok ? "OK" : "FAIL") << std::endl;
   // Check SCD30
-  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   auto mb = Modbus(&Serial1);
   SCD30_MB scd30;
   scd30 = SCD30_MB(&mb);
@@ -295,7 +296,7 @@ void setup() {
 
   // Serial debug logging
   Serial.begin(115200);
-
+  
   config.poweronselftest = selfTest();
   log_i("%s", config.poweronselftest);
 
