@@ -256,7 +256,6 @@ String selfTest() {
   // Check SD
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
   bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
-  SD.end();
   ss << "SD Card: " << (sd_ok ? "OK" : "FAIL") << std::endl;
   // Check SCD30
   auto mb = Modbus(&Serial1);
@@ -280,13 +279,16 @@ String selfTest() {
   ss << "DS18 Soil temp: " << (temp_ok ? "OK" : "FAIL") << std::endl;
   // Check moisture sensor?
   // TODO: Figure out a way to do that?
+  ss << "Power on self test complete";
+  return ss.str().c_str();
+}
+
+void do_valve_dance(){
   // Check valves (this is only audible/tactile, no software readback)
   board::close_valves();
   board::open_valves();
   board::close_valves();
   board::open_valves();
-  ss << "Power on self test complete";
-  return ss.str().c_str();
 }
 
 void setup() {
@@ -307,7 +309,8 @@ void setup() {
 
   if (!experimentOngoing) {
     // Power on reset, need to start config website
-    initialConfig();
+    do_valve_dance(); // Indicate that we're on
+    initialConfig(); // Launches the config website and blocks until configured.
   } else {
     // We're waking up from deep sleep during an ongoing experiment
     // So we just need to restore the config
@@ -316,6 +319,7 @@ void setup() {
   }
 
   vTaskDelay(100 / portTICK_PERIOD_MS);
+  // Begin measurement
   enterWarmup();
   if (config.chamber_type == "valve") { // TODO: refactor magic string
     vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
@@ -331,6 +335,7 @@ void setup() {
   enterSleep(config.sleep_duration);
 }
 
+// Unreachable, as we always enter deep sleep at the end of setup()
 void loop() {
   log_e("Why are we in the loop?");
   for (;;) {};
