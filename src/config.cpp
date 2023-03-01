@@ -75,10 +75,10 @@ std::string Config::dumps() {
                            {"intermix_duration", this->intermix_duration},
                            {"soil_interval", this->soil_interval},
                            {"sleep_duration", this->sleep_duration},
-                           {"log_file_name", this->logfilename},
-                           {"location_notes", this->location_notes},
+                           {"log_file_name", this->logfilename.c_str()},
+                           {"location_notes", this->location_notes.c_str()},
                            {"flow_meas_time", this->flow_meas_time},
-                           {"chamber_type", this->chamber_type}};
+                           {"chamber_type", this->chamber_type.c_str()}};
   return configuration.dump();
 }
 
