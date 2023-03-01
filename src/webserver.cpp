@@ -51,13 +51,17 @@ String index_template_processor(Config* config, const String& var) {
   } else if (var == "filelist") {
     return index_filelist();
   } else if (var == "sizelist") {
-    return index_filelist(true);
+    return index_filelist(true); //TODO: This can be cleaned up
   } else if (var == "co2interval") {
     return std::to_string(config->sleep_duration).c_str();
   } else if (var == "co2lograte") {
     return std::to_string(config->co2_interval).c_str();
   } else if (var == "soillograte") {
     return std::to_string(config->soil_interval).c_str();
+  } else if (var == "intermixtimes") {
+    return std::to_string(config->intermix_times).c_str();
+  } else if (var == "intermixduration") {
+    return std::to_string(config->intermix_duration).c_str();
   } else if (var == "warmupduration") {
     return std::to_string(config->warmup_time).c_str();
   } else if (var == "premixduration") {
@@ -157,6 +161,8 @@ void web_setup_task(void* params) {
       FROM_PARAM(config->sleep_duration, "co2interval", .toInt());
       FROM_PARAM(config->co2_interval, "co2lograte", .toInt());
       FROM_PARAM(config->soil_interval, "soillograte", .toInt());
+      FROM_PARAM(config->intermix_times, "intermixtimes", .toInt());
+      FROM_PARAM(config->intermix_duration, "intermixduration", .toInt());
       FROM_PARAM(config->warmup_time, "warmupduration", .toInt());
       FROM_PARAM(config->premix_time, "premixduration", .toInt());
       FROM_PARAM(config->meas_time, "valvesclosedduration", .toInt());

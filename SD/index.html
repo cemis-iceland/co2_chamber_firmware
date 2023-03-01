@@ -304,6 +304,28 @@
             />
           </div>
 
+          <div class="formrow">
+            <label for="intermixtimes">Intermix times [ul]:</label>
+            <input
+              type="number"
+              id="intermixtimes"
+              name="intermixtimes"
+              placeholder="e.g. 3"
+              required
+            />
+          </div>
+
+          <div class="formrow">
+            <label for="intermixduration">Intermix duration [sec]:</label>
+            <input
+              type="number"
+              id="intermixduration"
+              name="intermixduration"
+              placeholder="e.g. 60"
+              required
+            />
+          </div>
+
           <div class="formrow" id="flow">
             <label for="flow_meas_time">Measure for [s]:</label>
             <input
@@ -449,6 +471,8 @@
     document.getElementById("co2interval").value = "@co2interval@";
     document.getElementById("co2lograte").value = "@co2lograte@";
     document.getElementById("soillograte").value = "@soillograte@";
+    document.getElementById("intermixtimes").value = "@intermixtimes@";
+    document.getElementById("intermixduration").value = "@intermixduration@";
     document.getElementById("warmupduration").value = "@warmupduration@";
     document.getElementById("premixduration").value = "@premixduration@";
     document.getElementById("valvesclosedduration").value =
