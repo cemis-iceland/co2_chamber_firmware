@@ -53,7 +53,7 @@ String index_template_processor(Config* config, const String& var) {
   } else if (var == "sizelist") {
     return index_filelist(true); //TODO: This can be cleaned up
   } else if (var == "co2interval") {
-    return std::to_string(config->sleep_duration).c_str();
+    return std::to_string(config->sleep_duration_minutes).c_str();
   } else if (var == "co2lograte") {
     return std::to_string(config->co2_interval).c_str();
   } else if (var == "soillograte") {
@@ -158,7 +158,7 @@ void web_setup_task(void* params) {
         }
       FROM_PARAM(config->latitude, "lat", .toFloat());
       FROM_PARAM(config->longitude, "lon", .toFloat());
-      FROM_PARAM(config->sleep_duration, "co2interval", .toInt());
+      FROM_PARAM(config->sleep_duration_minutes, "co2interval", .toInt());
       FROM_PARAM(config->co2_interval, "co2lograte", .toInt());
       FROM_PARAM(config->soil_interval, "soillograte", .toInt());
       FROM_PARAM(config->intermix_times, "intermixtimes", .toInt());

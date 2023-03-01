@@ -35,6 +35,7 @@
 // Globals
 Config config;
 RTC_DATA_ATTR bool experimentOngoing = false;
+RTC_DATA_ATTR int intermix_done_count = 0;
 
 // Sensor instances
 
@@ -64,6 +65,7 @@ static TaskHandle_t measure_soil = NULL;
 
 static SemaphoreHandle_t SD_mutex;
 
+/** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
   // Set up SCD30 CO2 sensor
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
@@ -189,13 +191,13 @@ void enterPostmix() {
   board::open_valves();
 }
 
-void enterSleep(uint64_t sleepTime) {
-  log_i("Entering sleep");
-  vTaskDelete(measure_co2);
-  vTaskDelete(measure_soil);
+void enterSleep(double sleepTime_minutes) {
+  log_i("Entering sleep for %lld seconds", (long long)(sleepTime_minutes*60));
+  if(measure_co2 != NULL){ vTaskDelete(measure_co2); }
+  if(measure_soil != NULL){ vTaskDelete(measure_soil); }
   experimentOngoing = true;
   board::power_off();
-  esp_deep_sleep(sleepTime * 60000000);
+  esp_deep_sleep((uint64_t)(sleepTime_minutes * 60.0 * 1000.0) * 1000);
 }
 
 void initialConfig() {
@@ -318,21 +320,35 @@ void setup() {
     config.restore();
   }
 
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  // Begin measurement
-  enterWarmup();
-  if (config.chamber_type == "valve") { // TODO: refactor magic string
-    vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
+  // Either begin measurement or an interstitial mixing
+  if(intermix_done_count < config.intermix_times){
+    // We're doing an intermix inbetween measurements
+    log_d("Intermix %d of %d", intermix_done_count + 1, config.intermix_times);
     enterPremix();
-    vTaskDelay(config.premix_time * 1000 / portTICK_PERIOD_MS);
-    enterValvesClosed();
-    vTaskDelay(config.meas_time * 1000 / portTICK_PERIOD_MS);
-    enterPostmix();
-    vTaskDelay(config.postmix_time * 1000 / portTICK_PERIOD_MS);
+    delay(config.intermix_duration * 1000);
+    intermix_done_count += 1;
   } else {
-    delay(config.flow_meas_time);
+    // Time to do a measurement
+    enterWarmup(); // Turn sensors on
+    if (config.chamber_type == "valve") { // TODO: refactor magic string
+      delay(config.warmup_time * 1000);
+      enterPremix(); // Turn fan on
+      delay(config.premix_time * 1000);
+      enterValvesClosed(); // Close valves
+      delay(config.meas_time * 1000);
+      enterPostmix(); // Open valves
+      delay(config.postmix_time * 1000);
+    } else { // Flow chamber
+      delay(config.flow_meas_time * 1000);
+    }
+    intermix_done_count = 0;
   }
-  enterSleep(config.sleep_duration);
+  // Deep sleep until next intermix or measurement, accounting for the time taken to measure
+  enterSleep((
+    (double)config.sleep_duration_minutes 
+    - (config.warmup_time + config.premix_time + config.meas_time + config.postmix_time) / 60.0 
+    - (config.intermix_times * config.intermix_duration) / 60.0
+    ) / (config.intermix_times + 1));
 }
 
 // Unreachable, as we always enter deep sleep at the end of setup()

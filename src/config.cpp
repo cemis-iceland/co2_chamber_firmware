@@ -19,9 +19,8 @@ void Config::save() {
   pref.putInt("co2_interval", co2_interval);
   pref.putInt("soil_interval", soil_interval);
   pref.putInt("inter_times", intermix_times);
-  pref.putInt("inter_done", intermix_done_count);
   pref.putInt("inter_duration", intermix_duration);
-  pref.putInt("sleep_duration", sleep_duration);
+  pref.putInt("sleep_duration", sleep_duration_minutes);
   pref.putString("logfilename", logfilename);
   pref.putString("serial_number", serial_number);
   pref.putInt("flow_meas_time", flow_meas_time);
@@ -43,10 +42,9 @@ void Config::restore() {
   postmix_time = pref.getInt("postmix_time", postmix_time);
   co2_interval = pref.getInt("co2_interval", co2_interval);
   soil_interval = pref.getInt("soil_interval", soil_interval);
-  intermix_times = pref.getInt("soil_interval", intermix_times);
-  intermix_done_count = pref.getInt("inter_done", intermix_done_count);
+  intermix_times = pref.getInt("inter_times", intermix_times);
   intermix_duration = pref.getInt("inter_duration", intermix_duration);
-  sleep_duration = pref.getInt("sleep_duration", sleep_duration);
+  sleep_duration_minutes = pref.getInt("sleep_duration", sleep_duration_minutes);
   logfilename = pref.getString("logfilename", logfilename);
   serial_number = pref.getString("serial_number", serial_number);
   flow_meas_time = pref.getInt("flow_meas_time", flow_meas_time);
@@ -74,7 +72,7 @@ std::string Config::dumps() {
                            {"intermix_times", this->intermix_times},
                            {"intermix_duration", this->intermix_duration},
                            {"soil_interval", this->soil_interval},
-                           {"sleep_duration", this->sleep_duration},
+                           {"sleep_duration", this->sleep_duration_minutes},
                            {"log_file_name", this->logfilename.c_str()},
                            {"location_notes", this->location_notes.c_str()},
                            {"flow_meas_time", this->flow_meas_time},
