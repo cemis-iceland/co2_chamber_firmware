@@ -22,7 +22,9 @@ struct Config {
   int soil_interval = 6;    /* The interval at which the soil temp and soil
                                     moist sensors take measurements in seconds.
                                     Default 60s */
-  int sleep_duration = 180; // The sleep duration in minutes
+  int sleep_duration_minutes = 180; // The sleep duration in minutes
+  int intermix_times = 0; // Number of times to wake up and run the fan only between measurements
+  int intermix_duration = 60; // Seconds to run fan for during intermix
   String logfilename = "temp.csv"; // File where measurements are stored.
   String serial_number = "";       // Serial number of the chamber
 
@@ -45,13 +47,6 @@ struct Config {
   /* Return the current configuration as a JSON string */
   std::string dumps();
 
-  /** @deprecated Attempt to parse the configuration file at path on the given
-   * filesystem */
-  void readFrom(FS& fs, const char* path);
-
-  /** @deprecated Write the current configuration to the given path on the given
-  filesytem. Example: config.writeTo(SD, "config.json"); */
-  void writeTo(FS& fs, const char* path);
 };
 
 #endif // CONFIG_H_20220712

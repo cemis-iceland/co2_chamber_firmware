@@ -18,7 +18,9 @@ void Config::save() {
   pref.putInt("postmix_time", postmix_time);
   pref.putInt("co2_interval", co2_interval);
   pref.putInt("soil_interval", soil_interval);
-  pref.putInt("sleep_duration", sleep_duration);
+  pref.putInt("inter_times", intermix_times);
+  pref.putInt("inter_duration", intermix_duration);
+  pref.putInt("sleep_duration", sleep_duration_minutes);
   pref.putString("logfilename", logfilename);
   pref.putString("serial_number", serial_number);
   pref.putInt("flow_meas_time", flow_meas_time);
@@ -40,7 +42,9 @@ void Config::restore() {
   postmix_time = pref.getInt("postmix_time", postmix_time);
   co2_interval = pref.getInt("co2_interval", co2_interval);
   soil_interval = pref.getInt("soil_interval", soil_interval);
-  sleep_duration = pref.getInt("sleep_duration", sleep_duration);
+  intermix_times = pref.getInt("inter_times", intermix_times);
+  intermix_duration = pref.getInt("inter_duration", intermix_duration);
+  sleep_duration_minutes = pref.getInt("sleep_duration", sleep_duration_minutes);
   logfilename = pref.getString("logfilename", logfilename);
   serial_number = pref.getString("serial_number", serial_number);
   flow_meas_time = pref.getInt("flow_meas_time", flow_meas_time);
@@ -65,8 +69,10 @@ std::string Config::dumps() {
                            {"meas_time", this->meas_time},
                            {"postmix_time", this->postmix_time},
                            {"co2_interval", this->co2_interval},
+                           {"intermix_times", this->intermix_times},
+                           {"intermix_duration", this->intermix_duration},
                            {"soil_interval", this->soil_interval},
-                           {"sleep_duration", this->sleep_duration},
+                           {"sleep_duration", this->sleep_duration_minutes},
                            {"log_file_name", this->logfilename.c_str()},
                            {"location_notes", this->location_notes.c_str()},
                            {"flow_meas_time", this->flow_meas_time},
@@ -74,56 +80,4 @@ std::string Config::dumps() {
   return configuration.dump();
 }
 
-///@deprecated
-void Config::readFrom(FS& fs, const char* path) {
-  if (!fs.exists(path)) {
-    log_i("File %s doesn't exist, NOT creating default file", path);
-    // writeConfig(); //TODO: Should we write a default config?
-    return;
-  }
 
-  auto file = fs.open(path, FILE_READ);
-  if (!file) {
-    // If we don't have file we stop
-    log_e("SD Card failed to open!");
-    for (;;) // TODO: Fault tolerance
-      ;
-  }
-  std::string buf = "";
-  while (file.available()) {
-    buf += file.read();
-  }
-  file.close();
-  std::string err;
-  json11::Json configuration = json11::Json::parse(buf, err);
-  // TODO: Check for failed JSON parse
-  int version = configuration["version"].int_value();
-  if (version == 1) {
-    this->latitude = configuration["latitude"].int_value();
-    this->longitude = configuration["longitude"].int_value();
-    this->warmup_time = configuration["warmup_time"].int_value();
-    this->premix_time = configuration["premix_time"].int_value();
-    this->meas_time = configuration["meas_time"].int_value();
-    this->postmix_time = configuration["postmix_time"].int_value();
-    this->co2_interval = configuration["co2_interval"].int_value();
-    this->soil_interval = configuration["soil_interval"].int_value();
-    this->sleep_duration = configuration["sleep_duration"].int_value();
-    this->logfilename = configuration["log_file_name"].string_value().c_str();
-  } else {
-    log_e("Read configuration file of unsupported version");
-  }
-}
-///@deprecated
-void Config::writeTo(FS& fs, const char* path) {
-  log_i("Creating file %s", path);
-  fs.remove(path);
-  auto file = fs.open(path, FILE_WRITE);
-  if (!file) {
-    // If we don't have file we stop //TODO: fault tolerance
-    log_fail("SD Card failed to open!", false, true);
-  }
-  // Write config to file
-  std::string conf_str = this->dumps();
-  file.write((const uint8_t*)conf_str.data(), conf_str.length());
-  file.close();
-}

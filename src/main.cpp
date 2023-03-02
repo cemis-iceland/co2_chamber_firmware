@@ -35,6 +35,7 @@
 // Globals
 Config config;
 RTC_DATA_ATTR bool experimentOngoing = false;
+RTC_DATA_ATTR int intermix_done_count = 0;
 
 // Sensor instances
 
@@ -63,7 +64,23 @@ static TaskHandle_t measure_co2 = NULL;
 static TaskHandle_t measure_soil = NULL;
 
 static SemaphoreHandle_t SD_mutex;
+// Appends the given string to the end of the current measurement file.
+void write_to_measurement_file(std::string data){
+  xSemaphoreTake(SD_mutex, portMAX_DELAY);
+    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
+    if (!file) {
+      log_e("Failed to open file %s", config.logfilename.c_str());
+      digitalWrite(PIN_STATUS_LED, HIGH);
+    } else {
+      file.print(data.c_str());
+      file.flush();
+    }
+    file.close();
+    xSemaphoreGive(SD_mutex);
+}
 
+
+/** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
   // Set up SCD30 CO2 sensor
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
@@ -110,17 +127,7 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
-    xSemaphoreTake(SD_mutex, portMAX_DELAY);
-    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", config.logfilename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-    xSemaphoreGive(SD_mutex);
+    write_to_measurement_file(ss.str());
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -149,17 +156,7 @@ void measure_soil_task(void* parameter) {
     fmt_meas(time, ss, "soil_moisture", soil_moisture);
 
     // Save data to file
-    xSemaphoreTake(SD_mutex, portMAX_DELAY);
-    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", config.logfilename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-    xSemaphoreGive(SD_mutex);
+    write_to_measurement_file(ss.str());
 
     vTaskDelay(config.soil_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -167,7 +164,6 @@ void measure_soil_task(void* parameter) {
 
 void enterWarmup() {
   log_i("Entering warmup");
-  SD_mutex = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10,
@@ -177,25 +173,41 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_on();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "fan_on", 1);
+  write_to_measurement_file(ss.str());
 }
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
   board::close_valves();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "valves_closed", 1);
+  write_to_measurement_file(ss.str());
 }
 
 void enterPostmix() {
   log_i("Entering postmix");
   board::open_valves();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "valves_closed", 0);
+  write_to_measurement_file(ss.str());
 }
 
-void enterSleep(uint64_t sleepTime) {
-  log_i("Entering sleep");
-  vTaskDelete(measure_co2);
-  vTaskDelete(measure_soil);
+void enterSleep(double sleepTime_minutes) {
+  log_i("Entering sleep for %lld seconds", (long long)(sleepTime_minutes*60));
+  if(measure_co2 != NULL){ vTaskDelete(measure_co2); }
+  if(measure_soil != NULL){ vTaskDelete(measure_soil); }
   experimentOngoing = true;
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "fan_on", 0);
+  write_to_measurement_file(ss.str());
   board::power_off();
-  esp_deep_sleep(sleepTime * 60000000);
+  esp_deep_sleep((uint64_t)(sleepTime_minutes * 60.0 * 1000.0) * 1000);
 }
 
 void initialConfig() {
@@ -250,7 +262,7 @@ void initialConfig() {
 
 String selfTest() {
   std::stringstream ss{};
-  ss << "Power on self test\nChamber firmware v0.2" << std::endl;
+  ss << "Power on self test\nChamber firmware v0.3" << std::endl;
   // Set up serial port for SCD30
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
@@ -303,6 +315,7 @@ void setup() {
   log_i("%s", config.poweronselftest);
 
   // Set up SD card
+  SD_mutex = xSemaphoreCreateMutex();
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
   log_fail("SD initialization...", SD.begin(PIN_SD_CSN, SPI),
            !CONTINUE_WITHOUT_SD);
@@ -318,21 +331,35 @@ void setup() {
     config.restore();
   }
 
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  // Begin measurement
-  enterWarmup();
-  if (config.chamber_type == "valve") { // TODO: refactor magic string
-    vTaskDelay(config.warmup_time * 1000 / portTICK_PERIOD_MS);
+  // Either begin measurement or an interstitial mixing
+  if(intermix_done_count < config.intermix_times){
+    // We're doing an intermix inbetween measurements
+    log_d("Intermix %d of %d", intermix_done_count + 1, config.intermix_times);
     enterPremix();
-    vTaskDelay(config.premix_time * 1000 / portTICK_PERIOD_MS);
-    enterValvesClosed();
-    vTaskDelay(config.meas_time * 1000 / portTICK_PERIOD_MS);
-    enterPostmix();
-    vTaskDelay(config.postmix_time * 1000 / portTICK_PERIOD_MS);
+    delay(config.intermix_duration * 1000);
+    intermix_done_count += 1;
   } else {
-    delay(config.flow_meas_time);
+    // Time to do a measurement
+    enterWarmup(); // Turn sensors on
+    if (config.chamber_type == "valve") { // TODO: refactor magic string
+      delay(config.warmup_time * 1000);
+      enterPremix(); // Turn fan on
+      delay(config.premix_time * 1000);
+      enterValvesClosed(); // Close valves
+      delay(config.meas_time * 1000);
+      enterPostmix(); // Open valves
+      delay(config.postmix_time * 1000);
+    } else { // Flow chamber
+      delay(config.flow_meas_time * 1000);
+    }
+    intermix_done_count = 0;
   }
-  enterSleep(config.sleep_duration);
+  // Deep sleep until next intermix or measurement, accounting for the time taken to measure
+  enterSleep((
+    (double)config.sleep_duration_minutes 
+    - (config.warmup_time + config.premix_time + config.meas_time + config.postmix_time) / 60.0 
+    - (config.intermix_times * config.intermix_duration) / 60.0
+    ) / (config.intermix_times + 1));
 }
 
 // Unreachable, as we always enter deep sleep at the end of setup()
