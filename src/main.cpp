@@ -262,7 +262,7 @@ void initialConfig() {
 
 String selfTest() {
   std::stringstream ss{};
-  ss << "Power on self test\nChamber firmware v0.2" << std::endl;
+  ss << "Power on self test\nChamber firmware v0.3" << std::endl;
   // Set up serial port for SCD30
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
