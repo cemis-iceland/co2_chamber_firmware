@@ -64,6 +64,21 @@ static TaskHandle_t measure_co2 = NULL;
 static TaskHandle_t measure_soil = NULL;
 
 static SemaphoreHandle_t SD_mutex;
+// Appends the given string to the end of the current measurement file.
+void write_to_measurement_file(std::string data){
+  xSemaphoreTake(SD_mutex, portMAX_DELAY);
+    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
+    if (!file) {
+      log_e("Failed to open file %s", config.logfilename.c_str());
+      digitalWrite(PIN_STATUS_LED, HIGH);
+    } else {
+      file.print(data.c_str());
+      file.flush();
+    }
+    file.close();
+    xSemaphoreGive(SD_mutex);
+}
+
 
 /** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
@@ -112,17 +127,7 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
-    xSemaphoreTake(SD_mutex, portMAX_DELAY);
-    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", config.logfilename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-    xSemaphoreGive(SD_mutex);
+    write_to_measurement_file(ss.str());
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -151,17 +156,7 @@ void measure_soil_task(void* parameter) {
     fmt_meas(time, ss, "soil_moisture", soil_moisture);
 
     // Save data to file
-    xSemaphoreTake(SD_mutex, portMAX_DELAY);
-    auto file = SD.open(config.logfilename.c_str(), FILE_APPEND);
-    if (!file) {
-      log_e("Failed to open file %s", config.logfilename.c_str());
-      digitalWrite(PIN_STATUS_LED, HIGH);
-    } else {
-      file.print(ss.str().c_str());
-      file.flush();
-    }
-    file.close();
-    xSemaphoreGive(SD_mutex);
+    write_to_measurement_file(ss.str());
 
     vTaskDelay(config.soil_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -169,7 +164,6 @@ void measure_soil_task(void* parameter) {
 
 void enterWarmup() {
   log_i("Entering warmup");
-  SD_mutex = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10,
@@ -179,16 +173,28 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_on();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "fan_on", 1);
+  write_to_measurement_file(ss.str());
 }
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
   board::close_valves();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "valves_closed", 1);
+  write_to_measurement_file(ss.str());
 }
 
 void enterPostmix() {
   log_i("Entering postmix");
   board::open_valves();
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "valves_closed", 0);
+  write_to_measurement_file(ss.str());
 }
 
 void enterSleep(double sleepTime_minutes) {
@@ -196,6 +202,10 @@ void enterSleep(double sleepTime_minutes) {
   if(measure_co2 != NULL){ vTaskDelete(measure_co2); }
   if(measure_soil != NULL){ vTaskDelete(measure_soil); }
   experimentOngoing = true;
+  std::stringstream ss{""};
+  std::string time = timestamp();
+  fmt_meas(time, ss, "fan_on", 0);
+  write_to_measurement_file(ss.str());
   board::power_off();
   esp_deep_sleep((uint64_t)(sleepTime_minutes * 60.0 * 1000.0) * 1000);
 }
@@ -305,6 +315,7 @@ void setup() {
   log_i("%s", config.poweronselftest);
 
   // Set up SD card
+  SD_mutex = xSemaphoreCreateMutex();
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI);
   log_fail("SD initialization...", SD.begin(PIN_SD_CSN, SPI),
            !CONTINUE_WITHOUT_SD);
