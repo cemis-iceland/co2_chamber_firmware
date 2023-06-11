@@ -25,6 +25,31 @@ Modbus::Request Modbus::create_request(uint8_t address, uint8_t fcode,
   return buffer;
 }
 
+/// @brief Creates a 11 byte request to use for the Write Multiple Registers function in Sunrise sensors
+/// @param address Modbus address
+/// @param fcode Modbus function code
+/// @param register_start Starting address of register
+/// @param content Data content
+/// @return 11 byte buffer of data containing the modbus command
+Modbus::Request11Byte Modbus::create_request_11byte(uint8_t address, uint8_t fcode,
+                                       uint16_t register_start,
+                                       uint16_t content) {
+  std::array<uint8_t, 11> buffer{0};
+  buffer[0] = address;
+  buffer[1] = fcode;
+  buffer[2] = (register_start & 0xff00) >> 8; // MSB, beware endianness
+  buffer[3] = register_start & 0x00ff;        // LSB
+  buffer[4] = 0x00;                           // MSB Number of registers
+  buffer[5] = 0x01;                           // LSB Number of registers
+  buffer[6] = 0x01;                           // Number of data bytes
+  buffer[7] = (content & 0xff00) >> 8;        // MSB Content
+  buffer[8] = content & 0x00ff;               // LSB Content
+  auto crc = CRC16(buffer.cbegin(), 6);
+  buffer[9] = crc & 0x00ff;                   // CRC
+  buffer[10] = (crc & 0xff00) >> 8;           // CRC
+  return buffer;
+}
+
 Modbus::Request7Byte Modbus::create_request_7byte(uint8_t address, uint8_t fcode,
                                        uint16_t register_start,
                                        uint8_t content) {
@@ -49,6 +74,14 @@ void Modbus::send_request(const std::array<uint8_t, 8> request,
 }
 
 void Modbus::send_request_7byte(const std::array<uint8_t, 7> request,
+                          uint8_t* response_buffer, uint8_t res_len) {
+  clear_buffer(serial);
+  serial->write(request.cbegin(), request.size());
+  serial->readBytes(response_buffer, res_len);
+  clear_buffer(serial);
+}
+
+void Modbus::send_request_11byte(const std::array<uint8_t, 11> request,
                           uint8_t* response_buffer, uint8_t res_len) {
   clear_buffer(serial);
   serial->write(request.cbegin(), request.size());
