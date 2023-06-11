@@ -1,4 +1,4 @@
-#include "SCD30_MB.hpp"
+#include "Sunrise_MB.h"
 #include "board.h"
 #include "config.h"
 #include "pin_assignments.h"
@@ -82,13 +82,12 @@ void write_to_measurement_file(std::string data){
 
 /** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
-  // Set up SCD30 CO2 sensor
+  // Set up Sunrise CO2 sensor
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   auto mb = Modbus(&Serial1);
-  SCD30_MB scd30;
-  scd30 = SCD30_MB(&mb);
-  scd30.set_meas_interval(config.co2_interval);
-  scd30.start_cont_measurements(0x0000);
+  Sunrise_MB sunrise;
+  sunrise = Sunrise_MB(&mb);
+  sunrise.set_measurement_period(2);
 
   // Set up BME280 temperature/pressure/humidity sensor
   Adafruit_BME280 bme280{};
@@ -103,19 +102,10 @@ void measure_co2_task(void* parameter) {
     std::stringstream ss{""};
     std::string time = timestamp();
 
-    // Make sure SCD30 has fresh data (only an issue at meas rate > 2/s)
-    bool scdReady = false;
-    while (!scdReady) {
-      scd30.data_ready(&scdReady);
-      vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-
-    // Read sensor values from SCD30 and add them into ss
-    SCD30_Measurement scd30_meas;
-    scd30.read_measurement(&scd30_meas);
-    fmt_meas(time, ss, "scd30_co2", scd30_meas.co2);
-    fmt_meas(time, ss, "scd30_temperature", scd30_meas.temperature);
-    fmt_meas(time, ss, "scd30_humidity", scd30_meas.humidity_percent);
+    // Read sensor value from Sunrise and add it into ss
+    float co2_measurement = 0.0;
+    if(sunrise.read_measurement(&co2_measurement) != sunrise_err_t::OK) log_e("Sunrise measurement failed!");
+    fmt_meas(time, ss, "co2", co2_measurement);
 
     // Read BME280 environmental data and add it into ss
     sensors_event_t temp_1, hume_1, pres_1;
@@ -263,18 +253,18 @@ void initialConfig() {
 String selfTest() {
   std::stringstream ss{};
   ss << "Power on self test\nChamber firmware v0.3" << std::endl;
-  // Set up serial port for SCD30
+  // Set up serial port for Sunrise
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
   bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
   ss << "SD Card: " << (sd_ok ? "OK" : "FAIL") << std::endl;
-  // Check SCD30
+  // Check Sunrise
   auto mb = Modbus(&Serial1);
-  SCD30_MB scd30;
-  scd30 = SCD30_MB(&mb);
-  bool scd_ok = scd30.sensor_connected();
-  ss << "SCD30 CO2: " << (scd_ok ? "OK" : "FAIL") << std::endl;
+  Sunrise_MB sunrise;
+  sunrise = Sunrise_MB(&mb);
+  bool sunrise_ok = sunrise.sensor_connected();
+  ss << "Sunrise CO2: " << (sunrise_ok ? "OK" : "FAIL") << std::endl;
   // Check BME280
   bool wire_ok = Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   ss << "I2C Bus: " << (wire_ok ? "OK" : "FAIL") << std::endl;
