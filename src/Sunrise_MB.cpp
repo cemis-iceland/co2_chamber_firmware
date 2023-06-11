@@ -18,7 +18,6 @@ Sunrise_MB::Sunrise_MB(Modbus* modbus, uint8_t addr) : mb{modbus}, ADDRESS{addr}
 
 /// Check if sensor is connected on the right address.
 bool Sunrise_MB::sensor_connected() {
-    log_e("sensor_connected not implemented for Sunrise!");
     return false;
 
     auto req = 
@@ -60,7 +59,7 @@ sunrise_err_t Sunrise_MB::read_measurement_unfiltered(float* out) {
     mb->send_request(read_meas_request, response_buf, sizeof(response_buf));
 
     if (response_buf[1] != READ_INPUT) {
-        log_e("Invalid response to read measurements request: ");
+        log_e("Invalid response to read unfiltered measurements request: ");
         log_e("%s", bytes_to_str(response_buf, 7).c_str());
         return sunrise_err_t::INVALID_RESPONSE;
     }
@@ -69,6 +68,28 @@ sunrise_err_t Sunrise_MB::read_measurement_unfiltered(float* out) {
     
     *out = co2;
 
+    return sunrise_err_t::OK;
+}
+
+/// @brief Set the measurement period in seconds
+/// @param seconds Measurement period ranging from 2 to 65534
+sunrise_err_t Sunrise_MB::set_measurement_period(uint16_t seconds) {
+    if (seconds < 2 || seconds > 65534) {
+        log_e("Sunrise measurement period not within range");
+        return sunrise_err_t::INVALID_RESPONSE;
+    }
+    const auto measurement_period_request =
+        mb->create_request_11byte(ADDRESS, WRITE, reg::MEASUREMENT_PERIOD, seconds);
+    uint8_t period_buf[8]{0};
+    mb->send_request_11byte(measurement_period_request, period_buf, sizeof(period_buf));
+
+    if (period_buf[1] != 0x10) {
+        log_e("Invalid response to set measurement request: ");
+        log_e("%s", bytes_to_str(period_buf, 8).c_str());
+        return sunrise_err_t::INVALID_RESPONSE;
+    }
+
+    vTaskDelay(2500 / portTICK_PERIOD_MS);
     return sunrise_err_t::OK;
 }
 
@@ -105,7 +126,7 @@ sunrise_err_t Sunrise_MB::calibrate_0ppm() {
     mb->send_request_11byte(calibrate_request, calibrate_buf, sizeof(calibrate_buf));
 
     if (calibrate_buf[5] != 0x07) {
-        log_e("Invalid response to background calibration request: ");
+        log_e("Invalid response to zero ppm calibration request: ");
         log_e("%s", bytes_to_str(calibrate_buf, 8).c_str());
         return sunrise_err_t::INVALID_RESPONSE;
     }
