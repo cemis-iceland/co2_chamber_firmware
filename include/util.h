@@ -9,8 +9,10 @@ inline bool log_fail(const char* msg, bool val, bool freeze = true) {
   if (val) {
     log_i("%s SUCCESS", msg);
   } else {
-    log_e("%s FAILURE                <--- WARNING", msg);
-    if (freeze) {
+    if (!freeze){
+      log_e("%s FAILURE                <--- WARNING", msg);
+    } else {
+      log_e("%s FAILURE                <--- WARNING, RESTARTING", msg);
       for (int i = 0; i < 20; i++) {
         digitalWrite(PIN_STATUS_LED, HIGH);
         delay(50);
