@@ -18,8 +18,6 @@ Sunrise_MB::Sunrise_MB(Modbus* modbus, uint8_t addr) : mb{modbus}, ADDRESS{addr}
 
 /// Check if sensor is connected on the right address.
 bool Sunrise_MB::sensor_connected() {
-    return false;
-
     auto req = 
         mb->create_request(ADDRESS, READ_INPUT, reg::READ_CO2, 1);
     uint8_t resp[7]{0};

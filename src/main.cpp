@@ -83,7 +83,7 @@ void write_to_measurement_file(std::string data){
 /** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
   // Set up Sunrise CO2 sensor
-  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+  Serial1.begin(9600, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   auto mb = Modbus(&Serial1);
   Sunrise_MB sunrise;
   sunrise = Sunrise_MB(&mb);
@@ -254,7 +254,7 @@ String selfTest() {
   std::stringstream ss{};
   ss << "Power on self test\nChamber firmware v0.3" << std::endl;
   // Set up serial port for Sunrise
-  Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+  Serial1.begin(9600, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
   SPI.begin(PIN_SPI_SCLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_SD_CSN);
   bool sd_ok = SD.begin(PIN_SD_CSN, SPI);
