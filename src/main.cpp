@@ -252,7 +252,7 @@ void initialConfig() {
 
 String selfTest() {
   std::stringstream ss{};
-  ss << "Power on self test\nChamber firmware v0.3" << std::endl;
+  ss << "Power on self test\nChamber firmware v1.0" << std::endl;
   // Set up serial port for Sunrise
   Serial1.begin(9600, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
