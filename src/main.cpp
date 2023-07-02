@@ -95,8 +95,8 @@ void measure_co2_task(void* parameter) {
   auto bme_temp = bme280.getTemperatureSensor();
   auto bme_pres = bme280.getPressureSensor();
   auto bme_hume = bme280.getHumiditySensor();
-  log_fail("I2C initialization...", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL));
-  log_fail("BME280 Initialization...", bme280.begin(0x76, &Wire), true);
+  log_fail("I2C initialization...", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL), false);
+  log_fail("BME280 Initialization...", bme280.begin(0x76, &Wire), false);
 
   // Measure
   while (true) {
@@ -262,7 +262,7 @@ void initialConfig() {
 
 String selfTest() {
   std::stringstream ss{};
-  ss << "Power on self test\nChamber firmware v0.3" << std::endl;
+  ss << "Power on self test\nChamber firmware v0.4" << std::endl;
   // Set up serial port for SCD30
   Serial1.begin(19200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
   // Check SD
@@ -312,7 +312,7 @@ void setup() {
   Serial.begin(115200);
   
   config.poweronselftest = selfTest();
-  log_i("%s", config.poweronselftest);
+  log_i("%s", config.poweronselftest.c_str());
 
   // Set up SD card
   SD_mutex = xSemaphoreCreateMutex();
@@ -330,6 +330,7 @@ void setup() {
     log_i("Starting from deep sleep...");
     config.restore();
   }
+  
 
   // Either begin measurement or an interstitial mixing
   if(intermix_done_count < config.intermix_times){
