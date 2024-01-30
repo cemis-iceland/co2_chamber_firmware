@@ -42,6 +42,7 @@ void open_valves() {
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
   digitalWrite(PIN_VALVE_1_REV, LOW);
+
   digitalWrite(PIN_VALVE_2_REV, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
@@ -57,6 +58,7 @@ void close_valves() {
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, LOW);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
+  
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
