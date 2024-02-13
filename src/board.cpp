@@ -36,12 +36,14 @@ void power_on() {
 void power_off() { digitalWrite(PIN_PWR_EN, LOW); }
 
 void open_valves() {
+  // Valve 1
   digitalWrite(PIN_VALVE_1_REV, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
   digitalWrite(PIN_VALVE_1_REV, LOW);
+  // Valve 2
   digitalWrite(PIN_VALVE_2_REV, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
@@ -51,12 +53,14 @@ void open_valves() {
 }
 
 void close_valves() {
+  // Valve 1
   digitalWrite(PIN_VALVE_1_FWD, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_1_REV, LOW);
   digitalWrite(PIN_VALVE_1_FWD, LOW);
+  // Valve 2
   digitalWrite(PIN_VALVE_2_FWD, HIGH);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   digitalWrite(PIN_VALVE_2_REV, HIGH);
