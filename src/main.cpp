@@ -94,8 +94,8 @@ void measure_co2_task(void* parameter) {
   auto bme_temp = bme280.getTemperatureSensor();
   auto bme_pres = bme280.getPressureSensor();
   auto bme_hume = bme280.getHumiditySensor();
-  log_fail("I2C initialization...", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL), false);
-  log_fail("BME280 Initialization...", bme280.begin(0x76, &Wire), false);
+  log_fail("I2C initialization...", Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL), true);
+  log_fail("BME280 Initialization...", bme280.begin(0x76, &Wire), true);
 
   // Measure
   while (true) {
