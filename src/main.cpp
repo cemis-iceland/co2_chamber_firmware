@@ -4,6 +4,7 @@
 #include "pin_assignments.h"
 #include "util.h"
 #include "webserver.h"
+#include "ThingSpeakData.h"
 
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
@@ -127,6 +128,7 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
+    THINGSPEAK::Koltvioxid(scd30_meas.co2);
     write_to_measurement_file(ss.str());
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
@@ -307,6 +309,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
+  THINGSPEAK::setup_ThingSpeak(1);
 
   // Serial debug logging
   Serial.begin(115200);
