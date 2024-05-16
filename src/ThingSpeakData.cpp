@@ -86,7 +86,7 @@ void Hitastig(float hiti){
     }
 }
 
-void thrystingur(float thrist){
+void Thristingur(float thrist){
     if (isConnected()){
         ThingSpeak.writeField(2546046, 3, thrist, writeApi);
     }
