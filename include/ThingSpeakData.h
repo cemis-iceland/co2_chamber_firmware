@@ -9,14 +9,9 @@ void SetupWiFi(const char* ssid, const char* password);
 
 // Setup fyrir ThingSpeak aðgerðir.
 void setup_ThingSpeak(int serial_number);
-
 void Koltvioxid(float co2);
-
 void Raki(float raki);
-
 void Hitastig(float hiti);
-
 void Thristingur(float thrist);
-}
-
+} // namespace THINGSPEAK
 #endif

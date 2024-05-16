@@ -128,8 +128,10 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
-    THINGSPEAK::Koltvioxid(scd30_meas.co2);
+    // Serial.println("String: " + String(scd30_meas.co2));
+    // THINGSPEAK::Koltvioxid(scd30_meas.co2);
     write_to_measurement_file(ss.str());
+    THINGSPEAK::Raki(temp_1.relative_humidity);
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
