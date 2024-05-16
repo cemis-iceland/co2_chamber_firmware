@@ -73,7 +73,7 @@ void Raki(float raki){
         ThingSpeak.writeField(2546046, 2, raki, writeApi);
     }
     else{
-        Serial.print("Nær ekki tengingu til að senda raka");
+        Serial.print("Nær ekki tengingu til að senda raka.");
     }
 }
 
@@ -82,7 +82,7 @@ void Hitastig(float hiti){
         ThingSpeak.writeField(2546046, 3, hiti, writeApi);
     }
     else{
-        Serial.print("Nær ekki tengingu til að senda hitastig");
+        Serial.print("Nær ekki tengingu til að senda hitastig.");
     }
 }
 
@@ -91,7 +91,20 @@ void Thristingur(float thrist){
         ThingSpeak.writeField(2546046, 3, thrist, writeApi);
     }
     else{
-        Serial.print("Nær ekki tengingu til að senda þrýstingu");
+        Serial.print("Nær ekki tengingu til að senda þrýstingu.");
     }
 }
+
+void BMESk (float raki, float hiti, float thrist){
+    if (isConnected()){
+        ThingSpeak.writeField(2546046, 4, thrist, writeApi);
+        ThingSpeak.writeField(2546046, 3, hiti, writeApi);
+        ThingSpeak.writeField(2546046, 2, raki, writeApi);
+    }
+    else{
+        Serial.print("Nær ekki tengingu til að senda öll gildin.");
+    }
+
+}
+
 }

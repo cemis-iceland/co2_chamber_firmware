@@ -17,6 +17,9 @@ void Raki(float raki);
 void Hitastig(float hiti);
 
 void Thristingur(float thrist);
+
+void BMESk (float raki, float hiti, float thrist);
+
 }
 
 #endif
