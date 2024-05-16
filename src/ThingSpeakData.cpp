@@ -17,7 +17,7 @@ void SetupWiFi(const char* ssid, const char* password) {
   WiFi.begin(ssid, password);
   // Serial.print("Tengist við Wi-Fi")
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print(".");
   }
 
