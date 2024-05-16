@@ -64,7 +64,7 @@ void Koltvioxid(float co2){
   if (isConnected()) {
     int x = ThingSpeak.writeField(long(2546046), 1, co2, writeApi);
   } else {
-    Serial.print("Nær ekki tengingu til að senda koltvíoxíð");
+    Serial.print("Nær ekki tengingu til að senda koltvíoxíð.");
   }
 }
 
@@ -84,7 +84,7 @@ void Hitastig(float hiti){
         ThingSpeak.writeField(2546046, 3, hiti, writeApi);
     }
     else{
-        Serial.print("Nær ekki tengingu til að senda hitastig");
+        Serial.print("Nær ekki tengingu til að senda hitastig.");
     }
 }
 
@@ -94,7 +94,7 @@ void Thristingur(float thrist){
         ThingSpeak.writeField(2546046, 3, thrist, writeApi);
     }
     else{
-        Serial.print("Nær ekki tengingu til að senda þrýstingu");
+        Serial.print("Nær ekki tengingu til að senda þrýstingu.");
     }
 }
 
