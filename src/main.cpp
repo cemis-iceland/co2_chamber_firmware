@@ -131,7 +131,7 @@ void measure_co2_task(void* parameter) {
     // Serial.println("String: " + String(scd30_meas.co2));
     // THINGSPEAK::Koltvioxid(scd30_meas.co2);
     write_to_measurement_file(ss.str());
-    THINGSPEAK::Raki(temp_1.relative_humidity);
+    THINGSPEAK::Koltvioxid(scd30_meas.co2);
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -168,6 +168,7 @@ void measure_soil_task(void* parameter) {
 
 void enterWarmup() {
   log_i("Entering warmup");
+  THINGSPEAK::SetupWiFi();
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10,

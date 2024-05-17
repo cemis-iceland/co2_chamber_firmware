@@ -5,8 +5,7 @@
 //ReadAPI = BI3IRYRDYRCIO4EO
 
 namespace THINGSPEAK {
-void SetupWiFi(const char* ssid, const char* password);
-
+void SetupWiFi();
 // Setup fyrir ThingSpeak aðgerðir.
 void setup_ThingSpeak(int serial_number);
 void Koltvioxid(float co2);
