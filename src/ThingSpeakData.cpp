@@ -72,7 +72,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     ThingSpeak.setField(3, hiti);
     ThingSpeak.setField(4, thryst);
     int x = ThingSpeak.writeFields(channelNumber, writeApi);
-    if(x=200){
+    if(x == 200){
       Serial.println("Tókst að senda gögn");
     }
     else{
