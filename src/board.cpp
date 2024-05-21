@@ -68,7 +68,7 @@ void close_valves() {
 void fan_on() { digitalWrite(PIN_FAN, HIGH); }
 void fan_off() { digitalWrite(PIN_FAN, LOW); }
 
-void fan_fradual_setup() {
+void fan_gradual_setup() {
   ledcAttachPin(PIN_FAN,0);
   ledcSetup(0, 5000, 8);
 }
