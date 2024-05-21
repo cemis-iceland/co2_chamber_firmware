@@ -177,6 +177,7 @@ void enterWarmup() {
 
 void enterPremix() {
   log_i("Entering premix");
+  board::fan_gradual_on();
   board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
@@ -186,7 +187,10 @@ void enterPremix() {
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
+  board::fan_off()
   board::close_valves();
+  board::fan_gradual_on;
+  board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 1);
@@ -312,6 +316,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
+  board::Gradual_Fan_On_Setup();
   THINGSPEAK::setup_ThingSpeak(1);
 
   // Serial debug logging

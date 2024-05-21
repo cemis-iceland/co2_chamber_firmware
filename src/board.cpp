@@ -68,4 +68,20 @@ void close_valves() {
 void fan_on() { digitalWrite(PIN_FAN, HIGH); }
 void fan_off() { digitalWrite(PIN_FAN, LOW); }
 
+void fan_fradual_setup() {
+  ledcAttachPin(PIN_FAN,0);
+  ledcSetup(0, 5000, 8);
+}
+
+void fan_gradual_on() { 
+  double x = 0.0;
+  for (int i = 0; i < 4; i++) {
+    x += 0.25;
+    ledcWrite(0, 255 * x);
+    Serial.println("Duty cycle: " + String(255 * x));
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+  ledcDetachPin(PIN_FAN);
+}
+
 } // namespace board

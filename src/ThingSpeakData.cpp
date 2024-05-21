@@ -13,15 +13,15 @@ WiFiClient client;
 namespace THINGSPEAK {
 float channelNumber = 2546046;
 const char* writeApi = "I9IJWNMPNF2TKY12";
-const char* ssid = "AtDiddys";           
-const char* password = "diddi2389";
+const char* ssid = "nei";           
+const char* password = "mammathin01";
 
 void SetupWiFi() {
-  // Byrjr tengingu við netið
+  // Byrjar tengingu við netið5
   WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
   // Serial.print("Tengist við Wi-Fi")
   while (WiFi.status() != WL_CONNECTED) {
-    WiFi.begin(ssid, password);
     vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print(".");
   }
@@ -65,7 +65,7 @@ bool isConnected(){
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst){
-  if (isConnected() & client.connect(THINGSPEAK_URL, 80)){
+  if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
     Serial.println("Tengist við ThingSpeak");
     ThingSpeak.setField(1,co2);
     ThingSpeak.setField(2, raki);
@@ -84,15 +84,6 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     Serial.println("Tókst ekki að tengjast við ThingSpeak");
   }
 }
-
-  
-
-
-
-
-
-
-
 
 //Eftirfarandi föll eru eingungis til þess að getað sett eitt field í einu, getur verið þæginlegt til að debugga
 void Koltvioxid(float co2){
