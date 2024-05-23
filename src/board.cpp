@@ -73,9 +73,8 @@ void fan_gradual_setup() {
   ledcSetup(0, 5000, 8);
 }
 
-void fan_gradual_on() { 
+void fan_on_PWM(double mult) { 
   Serial.println("Gradual is on");
-  double mult = 0.5;
   ledcWrite(0, 255 * mult);
   Serial.println("Duty cycle: " + String(mult*100) + "%");
 }
