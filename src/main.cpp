@@ -81,7 +81,7 @@ void write_to_measurement_file(std::string data){
     xSemaphoreGive(SD_mutex);
 }
 
-void fan_on_PWM(void* parameter) { while(1) {board::fan_on_PWM(0.75);}}
+void fan_on_PWM(void* parameter) { while(1) {board::fan_on_PWM(0.90);}}
 
 /** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
@@ -130,10 +130,8 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
-    // Serial.println("String: " + String(scd30_meas.co2));
-    // THINGSPEAK::Koltvioxid(scd30_meas.co2);
     write_to_measurement_file(ss.str());
-    THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
+    // THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -169,7 +167,7 @@ void measure_soil_task(void* parameter) {
 }
 
 void enterWarmup() {
-  THINGSPEAK::SetupWiFi();
+  // THINGSPEAK::SetupWiFi();
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
@@ -179,8 +177,7 @@ void enterWarmup() {
 
 void enterPremix() {
   log_i("Entering premix");
-  xTaskCreatePinnedToCore(fan_on_PWM, "Fan on pwm", 16384, NULL, 10, &fan_on,
-                          1);
+  board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "fan_on", 1);
@@ -315,7 +312,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  board::fan_gradual_setup();
+  // board::fan_gradual_setup();
   THINGSPEAK::setup_ThingSpeak(1);
 
   // Serial debug logging
