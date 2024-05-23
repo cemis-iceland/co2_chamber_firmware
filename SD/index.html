@@ -249,13 +249,21 @@
                   />
                 </div>
               </div>
-              <button
+              <!-- <button
                 style="width: 1.6cm"
                 type="button"
                 onclick="navigator.geolocation.getCurrentPosition((loc)=>{document.getElementById('lat').value = loc.coords.latitude; document.getElementById('lon').value = loc.coords.longitude;})"
               >
                 Find
-              </button>
+              </button> -->
+            <button
+              style="width: 1.6cm"
+              type="button"
+              onclick="getLocation()"
+              >Find
+            </button>
+            <br>
+            <p id="prompt"></p>
             </div>
           </fieldset>
 
@@ -439,6 +447,26 @@
     chamb_type_onchange(); // initial
   </script>
 
+<script>
+  const a = document.getElementById("lat");
+  const b = document.getElementById("lon");
+  const x = document.getElementById("prompt");
+
+  function getLocation() { // Get geolocation from browser and add to paragraph below button.
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(showPosition);
+    } else { 
+      x.innerHTML = "Geolocation is not supported by this browser.";
+    }
+  }
+  
+  function showPosition(position) {
+    x.innerHTML = "Lat: " + position.coords.latitude +
+    "<br>Lon: " + position.coords.longitude;
+    a.innerHTML = position.coords.latitude
+    b.innerHTML = position.coords.longitude;
+  </script>
+
   <script>
     // Populates list of files.
 
@@ -475,8 +503,7 @@
     document.getElementById("intermixduration").value = "@intermixduration@";
     document.getElementById("warmupduration").value = "@warmupduration@";
     document.getElementById("premixduration").value = "@premixduration@";
-    document.getElementById("valvesclosedduration").value =
-      "@valvesclosedduration@";
+    document.getElementById("valvesclosedduration").value ="@valvesclosedduration@";
     document.getElementById("postmixduration").value = "@postmixduration@";
     document.getElementById("flow_meas_time").value = "@flow_meas_time@";
     document.getElementById("chambertype").value = "@chambertype@";
