@@ -74,14 +74,10 @@ void fan_gradual_setup() {
 }
 
 void fan_gradual_on() { 
-  double x = 0.0;
-  for (int i = 0; i < 4; i++) {
-    x += 0.25;
-    ledcWrite(0, 255 * x);
-    Serial.println("Duty cycle: " + String(255 * x));
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-  ledcDetachPin(PIN_FAN);
+  Serial.println("Gradual is on");
+  double mult = 0.5;
+  ledcWrite(0, 255 * mult);
+  Serial.println("Duty cycle: " + String(mult*100) + "%");
 }
 
 } // namespace board

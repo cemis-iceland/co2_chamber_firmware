@@ -178,7 +178,6 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_gradual_on();
-  board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "fan_on", 1);
@@ -187,10 +186,7 @@ void enterPremix() {
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
-  board::fan_off();
   board::close_valves();
-  board::fan_gradual_on();
-  board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 1);
