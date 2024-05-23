@@ -178,6 +178,7 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_on();
+  board::pump_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "fan_on", 1);

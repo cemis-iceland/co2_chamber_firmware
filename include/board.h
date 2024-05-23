@@ -12,6 +12,8 @@ void fan_on();       // Turn fan on
 void fan_off();      // Turn fan off
 void fan_gradual_setup();
 void fan_on_PWM(double mult);
+void pump_on();
+void pump_off();
 } // namespace board
 
 #endif
