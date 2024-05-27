@@ -70,15 +70,15 @@ void fan_off() { digitalWrite(PIN_FAN, LOW); }
 
 void pump_on() {
   digitalWrite(PIN_VALVE_1_REV, LOW);
-  digitalWrite(PIN_VALVE_2_FWD, HIGH);
+  digitalWrite(PIN_VALVE_1_FWD, HIGH);
 }
 
 void pump_off() {
-    digitalWrite(PIN_VALVE_1_REV, LOW);
-  digitalWrite(PIN_VALVE_2_FWD, LOW);
+  digitalWrite(PIN_VALVE_1_REV, LOW);
+  digitalWrite(PIN_VALVE_1_FWD, LOW);
 }
 
-void fan_gradual_setup() {
+void fan_PWM_setup() {
   ledcAttachPin(PIN_FAN,0);
   ledcSetup(0, 5000, 8);
 }
