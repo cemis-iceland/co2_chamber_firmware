@@ -11,10 +11,10 @@
 WiFiClient client;
 
 namespace THINGSPEAK {
-float channelNumber = 2546046;
-const char* writeApi = "I9IJWNMPNF2TKY12";
-const char* ssid = "AtDiddys";           
-const char* password = "diddi2389";
+int channelNumber = 0;
+char* writeApi = "";
+const char* ssid = "nei";           
+const char* password = "thingspeaker";
 
 void SetupWiFi() {
   // Byrjar tengingu við netið
@@ -36,26 +36,13 @@ void setup_ThingSpeak(int serial_number){
   ThingSpeak.begin(client);
   // kallar á "SetupWifi" og tengist við netið
 
-  // String channelsFylki[2][7] = {{"I9IJWNMPNF2TKY12", "I9IJWNMPNF2TKY12",
-  // "I9IJWNMPNF2TKY12", "I9IJWNMPNF2TKY12", "I9IJWNMPNF2TKY12",
-  // "I9IJWNMPNF2TKY12", "I9IJWNMPNF2TKY12"},{"2546046", "2546046", "2546046",
-  // "2546046", "2546046", "2546046", "2546046"}}; //Fylki með öllum channels.
-  // Seinni strengurinn er read kóði en nota hann tímabundið
+  //Fylki sem inniheldur öll API-write keys og Channel Number
+  const char* setupFylki[2][7] = {{"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"},
+  {"2546046", "2548253", "2548253", "2548253", "2548253", "2548253", "2548253", }};
 
-  // writeApi = channelsFylki[serial_number];
-
-  // String channel = channelsFylki[serialNr];
-
-  // if (serial_number == 1.1){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 1.2){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 2.1){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 2.2){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 3.1){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 3.2){writeApi = "I9IJWNMPNF2TKY12";}
-  // else if (serial_number == 4.1){writeApi = "I9IJWNMPNF2TKY12";}
-  // else {printf("Serial number not found");}
-
-  // thingURL = thingURL + String(writeApi);
+  //Gefur tækinu API-write-key og Channel Number
+  const char* writeApi = setupFylki[1][serial_number];
+  String channelNumber = setupFylki[2][serial_number];
 
 }
 
