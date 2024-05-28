@@ -314,7 +314,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  THINGSPEAK::setup_ThingSpeak(1);
+  THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
 
   // Serial debug logging
   Serial.begin(115200);
