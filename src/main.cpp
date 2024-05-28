@@ -312,8 +312,8 @@ void setup() {
   board::power_on();
   THINGSPEAK::setup_ThingSpeak(0);
 
-      // Serial debug logging
-      Serial.begin(115200);
+  // Serial debug logging
+  Serial.begin(115200);
 
   config.poweronselftest = selfTest();
   log_i("%s", config.poweronselftest.c_str());
