@@ -11,8 +11,8 @@ WiFiClient client;
 namespace THINGSPEAK {
 float channelNumber = 2546046;
 const char* writeApi = "I9IJWNMPNF2TKY12";
-const char* ssid = "nei";           
-const char* password = "thingspeaker";
+const char* ssid = "AtDiddys";           
+const char* password = "diddi2389";
 
 void SetupWiFi() {
   // Byrjar tengingu við netið
