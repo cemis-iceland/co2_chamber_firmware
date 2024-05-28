@@ -10,8 +10,8 @@
 WiFiClient client;
 
 namespace THINGSPEAK {
-int channelNumber = 0;
-const char* writeApi = "";
+float channelNumber = 0;
+char* writeApi = nullptr;
 const char* ssid = "nei";           
 const char* password = "thingspeaker";
 
@@ -30,24 +30,19 @@ void SetupWiFi() {
   Serial.print("Tengt við WiFi: " + WiFi.localIP());
 }
 
+//Fylki sem inniheldur öll API-write keys og Channel Number
+  char* APIFylki[7] = {"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
+  float channelFylki[7] = {2546046, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
+
+
 //Setup fyrir ThingSpeak aðgerðir. 
 void setup_ThingSpeak(int serial_number){
   ThingSpeak.begin(client);
   // kallar á "SetupWifi" og tengist við netið
 
-  //Fylki sem inniheldur öll API-write keys og Channel Number
-  writeApi = "I9IJWNMPNF2TKY12";
-  channelNumber = 2546046;
-  // const char* APIFylki[7] = {"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L",
-  // "H1SDZ72WOUCP8K0L",
-  //                           "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L",
-  //                           "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
-  // int channelFylki[7] = {2546046, 2548253, 2548253, 2548253, 2548253,
-  // 2548253, 2548253};
-
   //Gefur tækinu API-write-key og Channel Number
-  // writeApi = APIFylki[serial_number];
-  // channelNumber = channelFylki[int(serial_number)];
+  writeApi = APIFylki[serial_number];
+  channelNumber = channelFylki[serial_number];
 
   Serial.print("writeApi: ");
   Serial.println(writeApi);
