@@ -11,7 +11,7 @@ WiFiClient client;
 
 namespace THINGSPEAK {
 float channelNumber = 0;
-char* writeApi = nullptr;
+String writeApi = "";
 const char* ssid = "nei";           
 const char* password = "thingspeaker";
 
@@ -30,15 +30,14 @@ void SetupWiFi() {
   Serial.print("Tengt við WiFi: " + WiFi.localIP());
 }
 
-//Fylki sem inniheldur öll API-write keys og Channel Number
-  char* APIFylki[7] = {"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
-  float channelFylki[7] = {2546046, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
-
-
 //Setup fyrir ThingSpeak aðgerðir. 
 void setup_ThingSpeak(int serial_number){
   ThingSpeak.begin(client);
   // kallar á "SetupWifi" og tengist við netið
+
+  //Fylki sem inniheldur öll API-write keys og Channel Number
+  String APIFylki[7] = {"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
+  float channelFylki[7] = {2546046, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
 
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
@@ -63,7 +62,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     ThingSpeak.setField(2, raki);
     ThingSpeak.setField(3, hiti);
     ThingSpeak.setField(4, thryst);
-    int x = ThingSpeak.writeFields(channelNumber, writeApi);
+    int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
       Serial.println("Tókst að senda gögn");
     }
@@ -80,7 +79,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
 //Eftirfarandi föll eru eingungis til þess að getað sett eitt field í einu, getur verið þæginlegt til að debugga
 void Koltvioxid(float co2){
   if (isConnected() && client.connect(THINGSPEAK_URL,80)) {
-    int x = ThingSpeak.writeField(2546046, 1, co2, writeApi);
+    int x = ThingSpeak.writeField(2546046, 1, co2, writeApi.c_str());
     Serial.println("X: " + String(x));
   } else {
     Serial.print("Nær ekki tengingu til að senda koltvíoxíð.");
@@ -89,7 +88,7 @@ void Koltvioxid(float co2){
 
 void Raki(float raki){
   if (isConnected() && client.connect(THINGSPEAK_URL,80)) {
-    int x =  ThingSpeak.writeField(2546046, 2, raki, writeApi);
+    int x =  ThingSpeak.writeField(2546046, 2, raki, writeApi.c_str());
     Serial.println("X: " + String(x));
   } 
   else {
@@ -99,7 +98,7 @@ void Raki(float raki){
 
 void Hitastig(float hiti){
     if (isConnected() && client.connect(THINGSPEAK_URL,80)){
-      int x = ThingSpeak.writeField(2546046, 3, hiti, writeApi);
+      int x = ThingSpeak.writeField(2546046, 3, hiti, writeApi.c_str());
       Serial.println("X: " + String(x));
     }
     else{
@@ -109,7 +108,7 @@ void Hitastig(float hiti){
 
 void Thristingur(float thrist){
     if (isConnected() && client.connect(THINGSPEAK_URL,80)){
-      int x = ThingSpeak.writeField(2546046, 3, thrist, writeApi);
+      int x = ThingSpeak.writeField(2546046, 3, thrist, writeApi.c_str());
       Serial.println("X: " + String(x));
     }
     else{
