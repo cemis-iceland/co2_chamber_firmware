@@ -18,15 +18,25 @@ void SetupWiFi() {
   // Byrjar tengingu við netið
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  // Serial.print("Tengist við Wi-Fi")
-  while (WiFi.status() != WL_CONNECTED) {
+  Serial.print("Tengist við Wi-Fi");
+
+  int k = 0;
+  while (WiFi.status() != WL_CONNECTED && k < 60) {
     vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print(".");
+    k++;
   }
 
-  // Lætur vita þegar það nær tengingu
+
+  if (WiFi.status() == WL_CONNECTED) {
+    // Notify when connected
   Serial.println("");
-  Serial.print("Tengt við WiFi: " + WiFi.localIP());
+  Serial.print("Tengt við WiFi: " + String(WiFi.localIP()));
+  } else {
+    Serial.println("");
+    Serial.println("Failed to connect to WiFi");
+  }
+
 }
 
 //Setup fyrir ThingSpeak aðgerðir. 
@@ -69,7 +79,6 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     else{
       Serial.println("Tókst ekki að senda gögn");
     }
-
   }
   else{
     Serial.println("Tókst ekki að tengjast við ThingSpeak");
@@ -108,7 +117,7 @@ void Hitastig(float hiti){
 
 void Thristingur(float thrist){
     if (isConnected() && client.connect(THINGSPEAK_URL,80)){
-      int x = ThingSpeak.writeField(2546046, 3, thrist, writeApi);
+      int x = ThingSpeak.writeField(2546046, 4, thrist, writeApi);
       Serial.println("X: " + String(x));
     }
     else{
