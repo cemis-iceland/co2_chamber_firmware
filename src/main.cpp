@@ -80,7 +80,6 @@ void write_to_measurement_file(std::string data){
     xSemaphoreGive(SD_mutex);
 }
 
-
 /** Task that measures CO2 concentration, temperature, pressure and humidity at a set interval */
 void measure_co2_task(void* parameter) {
   // Set up SCD30 CO2 sensor
@@ -128,8 +127,6 @@ void measure_co2_task(void* parameter) {
     fmt_meas(time, ss, "air_pressure", pres_1.pressure, 9);
 
     // Save data to file
-    // Serial.println("String: " + String(scd30_meas.co2));
-    // THINGSPEAK::Koltvioxid(scd30_meas.co2);
     write_to_measurement_file(ss.str());
     THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
 
@@ -167,8 +164,8 @@ void measure_soil_task(void* parameter) {
 }
 
 void enterWarmup() {
-  log_i("Entering warmup");
   THINGSPEAK::SetupWiFi();
+  log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
   xTaskCreatePinnedToCore(measure_soil_task, "measure_soil", 16384, NULL, 10,
@@ -178,6 +175,7 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_on();
+  board::pump_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "fan_on", 1);
@@ -186,9 +184,7 @@ void enterPremix() {
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
-  board::fan_off();
   board::close_valves();
-  board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 1);
@@ -314,11 +310,11 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
+  THINGSPEAK::setup_ThingSpeak(0);
 
-  // Serial debug logging
-  Serial.begin(115200);
-  
+      // Serial debug logging
+      Serial.begin(115200);
+
   config.poweronselftest = selfTest();
   log_i("%s", config.poweronselftest.c_str());
 
