@@ -175,6 +175,7 @@ void enterWarmup() {
 void enterPremix() {
   log_i("Entering premix");
   board::fan_on();
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   board::pump_on();
   std::stringstream ss{""};
   std::string time = timestamp();
@@ -310,10 +311,10 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  THINGSPEAK::setup_ThingSpeak(0);
+  THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
 
-      // Serial debug logging
-      Serial.begin(115200);
+  // Serial debug logging
+  Serial.begin(115200);
 
   config.poweronselftest = selfTest();
   log_i("%s", config.poweronselftest.c_str());

@@ -60,31 +60,41 @@ bool isConnected(){
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst){
-  if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
+  int maxTries=5;
+  int retry = 0;
+  // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
+  // max 5x til þess að koma í veg fyrir yfirflæði frá þessu falli.
+  while(retry < maxTries) {
     Serial.println("Tengist við ThingSpeak");
-    ThingSpeak.setField(1,co2);
-    ThingSpeak.setField(2, raki);
-    ThingSpeak.setField(3, hiti);
-    ThingSpeak.setField(4, thryst);
+    if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
+      ThingSpeak.setField(1,co2);
+      ThingSpeak.setField(2, raki);
+      ThingSpeak.setField(3, hiti);
+      ThingSpeak.setField(4, thryst);
 
+      Serial.print("Serial Number er: ");
+      Serial.println(serial_number);
+      Serial.print("API-Key er: ");
+      Serial.println(writeApi);
+      Serial.print("Channel er: ");
+      Serial.println(channelNumber);
 
-    Serial.print("Serial Number er: ");
-    Serial.println(serial_number);
-    Serial.print("API-Key er: ");
-    Serial.println(writeApi);
+      int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
+      if(x == 200){
+        Serial.println("Tókst að senda gögn");
+        return; // fara úr falli ef það tekst að senda gögn.
+      } else {
+        Serial.println("Tókst ekki að senda gögn");
+        retry++;
+        }
 
-
-
-    int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
-    if(x == 200){
-      Serial.println("Tókst að senda gögn");
-    }
-    else{
-      Serial.println("Tókst ekki að senda gögn");
-    }
-  }
-  else{
-    Serial.println("Tókst ekki að tengjast við ThingSpeak");
+    } else {
+      Serial.println("Tókst ekki ad tengjast við ThingSpeak");
+      Serial.println("Endurræsi nettengingu.");
+      WiFi.disconnect();
+      WiFi.reconnect();
+      retry++;
+      }
   }
 }
 
