@@ -164,7 +164,7 @@ void measure_soil_task(void* parameter) {
 }
 
 void enterWarmup() {
-  //THINGSPEAK::SetupWiFi();
+  THINGSPEAK::SetupWiFi();
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
@@ -311,7 +311,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  //THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
+  THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
 
   // Serial debug logging
   Serial.begin(115200);
@@ -374,4 +374,4 @@ void loop() {
   for (;;) {};
 }
 
-//Tók út thingspeak og wifi. Lína 317 og 167
+//Tók út thingspeak og wifi. Lína 314 og 167
