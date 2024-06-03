@@ -60,7 +60,7 @@ bool isConnected(){
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst){
-  int maxTries=5;
+  int maxTries=60;
   int retry = 0;
   // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
   // max 5x til þess að koma í veg fyrir yfirflæði frá þessu falli.
