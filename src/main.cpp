@@ -32,6 +32,7 @@
 #define LOGFILE_POSTFIX ".csv"
 
 #define DEBUG_CLEAR_NVS false // Set to true to clear config storage on boot
+#define Thingspeak_On true // Set to false if not using thingspeak
 
 // Globals
 Config config;
@@ -128,7 +129,9 @@ void measure_co2_task(void* parameter) {
 
     // Save data to file
     write_to_measurement_file(ss.str());
-    THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
+    if(Thingspeak_On) {
+      THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
+    }  
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -166,7 +169,9 @@ void measure_soil_task(void* parameter) {
 
 //Til þess að algerlega taka út thingspeak og wifi þarf að kommenta út línu 314, 167 og 131.
 void enterWarmup() {
-  THINGSPEAK::SetupWiFi();
+  if(Thingspeak_On) {
+    THINGSPEAK::SetupWiFi();
+  }  
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
@@ -313,7 +318,9 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
+  if(Thingspeak_On) {
+    THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
+  }
 
   // Serial debug logging
   Serial.begin(115200);
