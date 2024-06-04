@@ -163,6 +163,8 @@ void measure_soil_task(void* parameter) {
   }
 }
 
+
+//Til þess að algerlega taka út thingspeak og wifi þarf að kommenta út línu 314, 167 og 131.
 void enterWarmup() {
   THINGSPEAK::SetupWiFi();
   log_i("Entering warmup");
@@ -373,5 +375,3 @@ void loop() {
   log_e("Why are we in the loop?");
   for (;;) {};
 }
-
-//Tók út thingspeak og wifi. Lína 314 og 167
