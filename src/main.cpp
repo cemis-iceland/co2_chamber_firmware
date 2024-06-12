@@ -32,7 +32,7 @@
 #define LOGFILE_POSTFIX ".csv"
 
 #define DEBUG_CLEAR_NVS false // Set to true to clear config storage on boot
-#define Thingspeak_On true // Set to false if not using thingspeak
+#define Thingspeak_On false // Set to false if not using thingspeak
 
 // Globals
 Config config;
