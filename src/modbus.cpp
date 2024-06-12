@@ -106,5 +106,3 @@ void clear_buffer(Stream* stream) {
     };
   };
 }
-
-
