@@ -169,7 +169,8 @@ void measure_soil_task(void* parameter) {
 
 void enterWarmup() {
   if(Thingspeak_On) {
-    THINGSPEAK::SetupWiFi();
+    float warmup_time = config.warmup_time;
+    THINGSPEAK::SetupWiFi(warmup_time);
   }  
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,

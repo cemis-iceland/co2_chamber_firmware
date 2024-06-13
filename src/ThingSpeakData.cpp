@@ -16,15 +16,15 @@ int serial_number = 0;
 const char* ssid = "HUAWEI_E5785_0B6F";           
 const char* password = "FNFQ3F496NJ";
 
-void SetupWiFi() {
+void SetupWiFi(float warmup) {
   // Byrjar tengingu við netið
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("Tengist við Wi-Fi");
 
   int k = 0;
-  while (WiFi.status() != WL_CONNECTED && k < 120) {
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+  while (WiFi.status() != WL_CONNECTED && k < warmup) {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     Serial.print(".");
     k++;
   }
@@ -94,7 +94,8 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
 
   } else {
     Serial.println("Tókst ekki ad tengjast við ThingSpeak");
-    Serial.println("Endurræsi nettengingu.");
+    return;
+    //Serial.println("Endurræsi nettengingu.");
     }
   }
 

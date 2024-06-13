@@ -5,7 +5,7 @@
 //ReadAPI = BI3IRYRDYRCIO4EO
 
 namespace THINGSPEAK {
-void SetupWiFi();
+void SetupWiFi(float warmup_time);
 void setup_ThingSpeak(int serial_number);
 bool isConnected();
 void WriteAll(float co2, float raki, float hiti, float thryst);
