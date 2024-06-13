@@ -11,8 +11,8 @@ WiFiClient client;
 namespace THINGSPEAK {
 float channelNumber = 2546046;
 String writeApi = "";
-const char* ssid = "AtDiddys";           
-const char* password = "diddi2389";
+const char* ssid = "HUAWEI_E5785_0B6F";           
+const char* password = "FNFQ3F496NJ";
 int serial_number = 0;
 
 void SetupWiFi() {
@@ -46,8 +46,11 @@ void setup_ThingSpeak(int serialNR){
   serial_number = serialNR;
 
   //Fylki sem inniheldur öll API-write keys og Channel Number
-  String APIFylki[7] = {"I9IJWNMPNF2TKY12", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
-  float channelFylki[7] = {2546046, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
+  String APIFylki[7] = {"FE7T0FTS1L2BDTY4", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
+
+  //Seinna meir hægt að bæta við read API ef þess þarf
+
+  float channelFylki[7] = {2574868, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
 
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
@@ -64,39 +67,35 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
   int retry = 0;
   // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
   // max 5x til þess að koma í veg fyrir yfirflæði frá þessu falli.
-  while(retry < maxTries) {
-    Serial.println("Tengist við ThingSpeak");
-    if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
-      ThingSpeak.setField(1,co2);
-      ThingSpeak.setField(2, raki);
-      ThingSpeak.setField(3, hiti);
-      ThingSpeak.setField(4, thryst);
+  //while(retry < maxTries) {
+  Serial.println("Tengist við ThingSpeak");
+  if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
+    ThingSpeak.setField(1,co2);
+    ThingSpeak.setField(2, raki);
+    ThingSpeak.setField(3, hiti);
+    ThingSpeak.setField(4, thryst);
 
-      Serial.print("Serial Number er: ");
-      Serial.println(serial_number);
-      Serial.print("API-Key er: ");
-      Serial.println(writeApi);
-      Serial.print("Channel er: ");
-      Serial.println(channelNumber);
+    Serial.print("Serial Number er: ");
+    Serial.println(serial_number);
+    Serial.print("API-Key er: ");
+    Serial.println(writeApi);
+    Serial.print("Channel er: ");
+    Serial.println(channelNumber);
 
-      int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
-      if(x == 200){
-        Serial.println("Tókst að senda gögn");
-        return; // fara úr falli ef það tekst að senda gögn.
-      } else {
-        Serial.println("Tókst ekki að senda gögn");
-        retry++;
-        }
-
+    int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
+    if(x == 200){
+      Serial.println("Tókst að senda gögn");
+      return; // fara úr falli ef það tekst að senda gögn.
     } else {
-      Serial.println("Tókst ekki ad tengjast við ThingSpeak");
-      Serial.println("Endurræsi nettengingu.");
-      WiFi.disconnect();
-      WiFi.reconnect();
-      retry++;
+      Serial.println("Tókst ekki að senda gögn");
       }
+
+  } else {
+    Serial.println("Tókst ekki ad tengjast við ThingSpeak");
+    Serial.println("Endurræsi nettengingu.");
+    }
   }
-}
+
 
 //Eftirfarandi föll eru eingungis til þess að getað sett eitt field í einu, getur verið þæginlegt til að debugga
 void Koltvioxid(float co2){
