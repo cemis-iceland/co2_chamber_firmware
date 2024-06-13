@@ -167,7 +167,6 @@ void measure_soil_task(void* parameter) {
 }
 
 
-//Til þess að algerlega taka út thingspeak og wifi þarf að kommenta út línu 314, 167 og 131.
 void enterWarmup() {
   if(Thingspeak_On) {
     THINGSPEAK::SetupWiFi();
@@ -354,6 +353,7 @@ void setup() {
   } else {
     // Time to do a measurement
     enterWarmup(); // Turn sensors on
+    
     if (config.chamber_type == "valve") { // TODO: refactor magic string
       delay(config.warmup_time * 1000);
       enterPremix(); // Turn fan on

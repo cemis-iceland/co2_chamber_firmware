@@ -9,20 +9,21 @@
 WiFiClient client;
 
 namespace THINGSPEAK {
-float channelNumber = 2546046;
+int channelNumber = 2546046;
 String writeApi = "";
+int serial_number = 0;
+
 const char* ssid = "HUAWEI_E5785_0B6F";           
 const char* password = "FNFQ3F496NJ";
-int serial_number = 0;
 
 void SetupWiFi() {
   // Byrjar tengingu við netið
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  Serial.print("Tengist við Wi-Fi");
+  Serial.println("Tengist við Wi-Fi");
 
   int k = 0;
-  while (WiFi.status() != WL_CONNECTED && k < 3600) {
+  while (WiFi.status() != WL_CONNECTED && k < 120) {
     vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print(".");
     k++;
@@ -44,13 +45,14 @@ void SetupWiFi() {
 void setup_ThingSpeak(int serialNR){
   ThingSpeak.begin(client);
   serial_number = serialNR;
+  Serial.println("Setur upp thingspeak.");
 
   //Fylki sem inniheldur öll API-write keys og Channel Number
   String APIFylki[7] = {"FE7T0FTS1L2BDTY4", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
 
   //Seinna meir hægt að bæta við read API ef þess þarf
 
-  float channelFylki[7] = {2574868, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
+  int channelFylki[7] = {2574868, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
 
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
@@ -63,8 +65,8 @@ bool isConnected(){
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst){
-  int maxTries=60;
-  int retry = 0;
+  //int maxTries=60;
+  //int retry = 0;
   // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
   // max 5x til þess að koma í veg fyrir yfirflæði frá þessu falli.
   //while(retry < maxTries) {
@@ -85,7 +87,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
       Serial.println("Tókst að senda gögn");
-      return; // fara úr falli ef það tekst að senda gögn.
+      //return; // fara úr falli ef það tekst að senda gögn.
     } else {
       Serial.println("Tókst ekki að senda gögn");
       }
