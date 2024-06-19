@@ -14,7 +14,7 @@ String writeApi = "";
 int serial_number = 0;
 
 const char* ssid = "HUAWEI_E5785_0B6F";           
-const char* password = "FNFQ3F496NJ";
+const char* password = "Cemis2024";
 
 void SetupWiFi(float warmup) {
   // Byrjar tengingu við netið
