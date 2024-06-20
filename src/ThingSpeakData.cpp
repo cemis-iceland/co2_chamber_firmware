@@ -5,6 +5,7 @@
 #include <HTTPClient.h>
 #include "ThingSpeakData.h"
 #include <string>
+#include <Preferences.h>
 
 WiFiClient client;
 
@@ -15,6 +16,7 @@ int serial_number = 0;
 
 const char* ssid = "HUAWEI_E5785_0B6F";           
 const char* password = "Cemis2024";
+
 
 void SetupWiFi(float warmup) {
   // Byrjar tengingu við netið
@@ -57,6 +59,15 @@ void setup_ThingSpeak(int serialNR){
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
   channelNumber = channelFylki[serial_number];
+
+  //Nær í staðsetningu tækis frá prefrances
+  Preferences pref;
+  float longditude = pref.getFloat("longditude", longditude);
+  float latitude = pref.getFloat("latitude", latitude);
+
+  //Setur upp staðsetningu á tækinu inná thingspeak, bara einu sinni.
+  ThingSpeak.setLongitude(longditude);
+  ThingSpeak.setLatitude(latitude);
 }
 
 //Fall sem segir okkur hvort tölvan er tengd við netið
@@ -64,7 +75,7 @@ bool isConnected(){
     return WiFi.status() == WL_CONNECTED;
 }
 
-void WriteAll(float co2, float raki, float hiti, float thryst){
+void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSED){
   //int maxTries=60;
   //int retry = 0;
   // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
@@ -77,6 +88,15 @@ void WriteAll(float co2, float raki, float hiti, float thryst){
     ThingSpeak.setField(3, hiti);
     ThingSpeak.setField(4, thryst);
 
+    //Setur status inná skjalinu sem fæst frá thingspeak.com
+    if(VALVES_CLOSED){
+      ThingSpeak.setStatus("Valves Closed");
+    }
+    else{
+      ThingSpeak.setStatus("Valves Open");
+    }
+
+    //Fyrir debug
     Serial.print("Serial Number er: ");
     Serial.println(serial_number);
     Serial.print("API-Key er: ");

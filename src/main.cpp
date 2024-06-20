@@ -39,6 +39,9 @@ Config config;
 RTC_DATA_ATTR bool experimentOngoing = false;
 RTC_DATA_ATTR int intermix_done_count = 0;
 
+//Segir til um hvort að lokarnir séu á eða af, notað til þess að sjá hvenær þeir eru á eða af í thingspeak gögnum.
+bool VALVES_CLOSED = false;
+
 // Sensor instances
 
 // Create strings for logging data in long format
@@ -130,7 +133,7 @@ void measure_co2_task(void* parameter) {
     // Save data to file
     write_to_measurement_file(ss.str());
     if(Thingspeak_On) {
-      THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure);
+      THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure, VALVES_CLOSED);
     }  
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
@@ -195,6 +198,7 @@ void enterValvesClosed() {
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 1);
   write_to_measurement_file(ss.str());
+  VALVES_CLOSED = true;
 }
 
 void enterPostmix() {
@@ -204,6 +208,7 @@ void enterPostmix() {
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 0);
   write_to_measurement_file(ss.str());
+  VALVES_CLOSED = false;
 }
 
 void enterSleep(double sleepTime_minutes) {
