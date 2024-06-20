@@ -5,7 +5,7 @@
 #include <HTTPClient.h>
 #include "ThingSpeakData.h"
 #include <string>
-#include <Preferences.h>
+#include "Preferences.h"
 
 WiFiClient client;
 
@@ -61,9 +61,13 @@ void setup_ThingSpeak(int serialNR){
   channelNumber = channelFylki[serial_number];
 
   //Nær í staðsetningu tækis frá prefrances
-  Preferences pref;
-  float longditude = pref.getFloat("longditude", longditude);
-  float latitude = pref.getFloat("latitude", latitude);
+  //Preferences pref;
+  //float longditude = pref.getFloat("longditude", longditude);
+  //float latitude = pref.getFloat("latitude", latitude);
+
+  Config config;
+  float latitude = config.latitude;
+  float longditude = config.longitude;
 
   //Setur upp staðsetningu á tækinu inná thingspeak, bara einu sinni.
   ThingSpeak.setLongitude(longditude);
@@ -89,12 +93,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     ThingSpeak.setField(4, thryst);
 
     //Setur status inná skjalinu sem fæst frá thingspeak.com
-    if(VALVES_CLOSED){
-      ThingSpeak.setStatus("Valves Closed");
-    }
-    else{
-      ThingSpeak.setStatus("Valves Open");
-    }
+
 
     //Fyrir debug
     Serial.print("Serial Number er: ");
@@ -103,6 +102,12 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     Serial.println(writeApi);
     Serial.print("Channel er: ");
     Serial.println(channelNumber);
+    if (VALVES_CLOSED){
+      ThingSpeak.setStatus("1");
+    }
+    else{
+      ThingSpeak.setStatus("0");
+    }
 
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
@@ -114,7 +119,7 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
 
   } else {
     Serial.println("Tókst ekki ad tengjast við ThingSpeak");
-    return;
+    //return;
     //Serial.println("Endurræsi nettengingu.");
     }
   }
