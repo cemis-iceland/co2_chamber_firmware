@@ -1,8 +1,6 @@
 #ifndef THINGSPEAK_
 #define THINGSPEAK_
 
-//WriteAPI = I9IJWNMPNF2TKY12
-//ReadAPI = BI3IRYRDYRCIO4EO
 
 namespace THINGSPEAK {
 void SetupWiFi(float warmup_time);

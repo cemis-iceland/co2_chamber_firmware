@@ -65,12 +65,15 @@ void setup_ThingSpeak(int serialNR){
   //float longditude = pref.getFloat("longditude", longditude);
   //float latitude = pref.getFloat("latitude", latitude);
 
-  Config config;
-  float latitude = config.latitude;
-  float longditude = config.longitude;
+  Preferences pref;
+  float latitude = pref.getFloat("latitude", latitude);
+  float longitude = pref.getFloat("longitude", longitude);
+
+  //float latitude = config.latitude;
+  //float longditude = config.longitude;
 
   //Setur upp staðsetningu á tækinu inná thingspeak, bara einu sinni.
-  ThingSpeak.setLongitude(longditude);
+  ThingSpeak.setLongitude(longitude);
   ThingSpeak.setLatitude(latitude);
 }
 
@@ -120,7 +123,6 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
   } else {
     Serial.println("Tókst ekki ad tengjast við ThingSpeak");
     //return;
-    //Serial.println("Endurræsi nettengingu.");
     }
   }
 
