@@ -198,7 +198,6 @@ void enterValvesClosed() {
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 1);
   write_to_measurement_file(ss.str());
-  VALVES_CLOSED = true;
 }
 
 void enterPostmix() {
@@ -208,7 +207,6 @@ void enterPostmix() {
   std::string time = timestamp();
   fmt_meas(time, ss, "valves_closed", 0);
   write_to_measurement_file(ss.str());
-  VALVES_CLOSED = false;
 }
 
 void enterSleep(double sleepTime_minutes) {
@@ -365,8 +363,10 @@ void setup() {
       enterPremix(); // Turn fan on
       delay(config.premix_time * 1000);
       enterValvesClosed(); // Close valves
+      VALVES_CLOSED = true;
       delay(config.meas_time * 1000);
       enterPostmix(); // Open valves
+      VALVES_CLOSED = false;
       delay(config.postmix_time * 1000);
     } else { // Flow chamber
       delay(config.flow_meas_time * 1000);

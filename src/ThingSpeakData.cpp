@@ -5,7 +5,6 @@
 #include <HTTPClient.h>
 #include "ThingSpeakData.h"
 #include <string>
-#include "Preferences.h"
 
 WiFiClient client;
 
@@ -59,22 +58,6 @@ void setup_ThingSpeak(int serialNR){
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
   channelNumber = channelFylki[serial_number];
-
-  //Nær í staðsetningu tækis frá prefrances
-  //Preferences pref;
-  //float longditude = pref.getFloat("longditude", longditude);
-  //float latitude = pref.getFloat("latitude", latitude);
-
-  Preferences pref;
-  float latitude = pref.getFloat("latitude", latitude);
-  float longitude = pref.getFloat("longitude", longitude);
-
-  //float latitude = config.latitude;
-  //float longditude = config.longitude;
-
-  //Setur upp staðsetningu á tækinu inná thingspeak, bara einu sinni.
-  ThingSpeak.setLongitude(longitude);
-  ThingSpeak.setLatitude(latitude);
 }
 
 //Fall sem segir okkur hvort tölvan er tengd við netið
@@ -83,17 +66,21 @@ bool isConnected(){
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSED){
-  //int maxTries=60;
-  //int retry = 0;
-  // Skrifa gögn upp á thingspeak, gera aðra tilraun ef nettenging næst ekki eða það tekst ekki að senda gögn.
-  // max 5x til þess að koma í veg fyrir yfirflæði frá þessu falli.
-  //while(retry < maxTries) {
+
   Serial.println("Tengist við ThingSpeak");
   if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
     ThingSpeak.setField(1,co2);
     ThingSpeak.setField(2, raki);
     ThingSpeak.setField(3, hiti);
     ThingSpeak.setField(4, thryst);
+    //Status(VALVES_CLOSED);
+
+    if (VALVES_CLOSED){
+      ThingSpeak.setStatus("1");
+    }
+    else{
+      ThingSpeak.setStatus("0");
+    }
 
     //Setur status inná skjalinu sem fæst frá thingspeak.com
 
@@ -105,12 +92,12 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     Serial.println(writeApi);
     Serial.print("Channel er: ");
     Serial.println(channelNumber);
-    if (VALVES_CLOSED){
-      ThingSpeak.setStatus("1");
-    }
-    else{
-      ThingSpeak.setStatus("0");
-    }
+    //if (VALVES_CLOSED){
+    //  ThingSpeak.setStatus("1");
+    //}
+    //else{
+    //  ThingSpeak.setStatus("0");
+    //}
 
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
@@ -167,4 +154,12 @@ void Thristingur(float thrist){
     }
 }
 
+void Status(bool VALVES_CLOSED){
+  if(VALVES_CLOSED){
+    ThingSpeak.setStatus("1");
+  }
+  else{
+    ThingSpeak.setStatus("0");
+  }
+}
 }
