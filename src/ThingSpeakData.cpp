@@ -92,12 +92,12 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     Serial.println(writeApi);
     Serial.print("Channel er: ");
     Serial.println(channelNumber);
-    //if (VALVES_CLOSED){
-    //  ThingSpeak.setStatus("1");
-    //}
-    //else{
-    //  ThingSpeak.setStatus("0");
-    //}
+    if (VALVES_CLOSED){
+     ThingSpeak.setStatus("1");
+    }
+    else{
+     ThingSpeak.setStatus("0");
+    }
 
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
