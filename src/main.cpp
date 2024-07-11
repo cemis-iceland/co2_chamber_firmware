@@ -320,7 +320,6 @@ void setup() {
   board::setup_gpio();
   board::power_on();
   int test = config.serial_number.toInt();
-  Serial.print("Serial númer main.cpp: " + test);
   if(Thingspeak_On) {
     THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
   }
