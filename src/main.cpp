@@ -132,9 +132,9 @@ void measure_co2_task(void* parameter) {
 
     // Save data to file
     write_to_measurement_file(ss.str());
-    if(Thingspeak_On) {
+    if(Thingspeak_On && VALVES_CLOSED) {
       THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure, VALVES_CLOSED);
-    }  
+    }
 
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
@@ -171,17 +171,6 @@ void measure_soil_task(void* parameter) {
 
 
 void enterWarmup() {
-  if(Thingspeak_On) {
-    float warmup_time = config.warmup_time;
-    THINGSPEAK::SetupWiFi(warmup_time);
-    THINGSPEAK::Status("[Starting Measurement] Warmup: " 
-                      + String(config.warmup_time) + " Seconds,   Premix: " 
-                      + String(config.premix_time) + " Seconds,   Valves closed: " 
-                      + String(config.meas_time) + " Seconds,   Post mix: " 
-                      + String(config.postmix_time) + " Seconds,    Sleep time: " 
-                      + String(config.sleep_duration_minutes) + " Minutes, Notes: "
-                      + String(config.location_notes));
-  }  
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
                           &measure_co2, 1);
@@ -190,7 +179,12 @@ void enterWarmup() {
 }
 
 void enterPremix() {
+
   log_i("Entering premix");
+  if(Thingspeak_On) {
+    float warmup_time = config.warmup_time;
+    THINGSPEAK::SetupWiFi(warmup_time);
+  }
   board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
