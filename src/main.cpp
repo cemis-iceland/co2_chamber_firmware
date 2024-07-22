@@ -174,6 +174,13 @@ void enterWarmup() {
   if(Thingspeak_On) {
     float warmup_time = config.warmup_time;
     THINGSPEAK::SetupWiFi(warmup_time);
+    THINGSPEAK::Status("[Starting Measurement] Warmup: " 
+                      + String(config.warmup_time) + " Seconds,   Premix: " 
+                      + String(config.premix_time) + " Seconds,   Valves closed: " 
+                      + String(config.meas_time) + " Seconds,   Post mix: " 
+                      + String(config.postmix_time) + " Seconds,    Sleep time: " 
+                      + String(config.sleep_duration_minutes) + " Minutes, Notes: "
+                      + String(config.location_notes));
   }  
   log_i("Entering warmup");
   xTaskCreatePinnedToCore(measure_co2_task, "measure_co2", 16384, NULL, 10,
@@ -320,6 +327,8 @@ void setup() {
   board::setup_gpio();
   board::power_on();
   if(Thingspeak_On) {
+
+    // !!það þarf að skoða hvort þett sé að virka rétt!!
     THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
   }
 

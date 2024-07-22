@@ -11,5 +11,6 @@ void Koltvioxid(float co2);
 void Raki(float raki);
 void Hitastig(float hiti);
 void Thristingur(float thrist);
-} //namespace THINGSPEAK
+void Status(String STATUS);
+} // namespace THINGSPEAK
 #endif

@@ -42,6 +42,8 @@ void SetupWiFi(float warmup) {
 
 }
 
+void Status(String STATUS) { ThingSpeak.setStatus(STATUS); }
+
 //Setup fyrir ThingSpeak aðgerðir. 
 void setup_ThingSpeak(int serialNR){
   ThingSpeak.begin(client);
@@ -73,13 +75,13 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     ThingSpeak.setField(2, raki);
     ThingSpeak.setField(3, hiti);
     ThingSpeak.setField(4, thryst);
-    //Status(VALVES_CLOSED);
 
+    //Status(VALVES_CLOSED);
     if (VALVES_CLOSED){
-      ThingSpeak.setStatus("1");
+      ThingSpeak.setField(5,"1");
     }
     else{
-      ThingSpeak.setStatus("0");
+      ThingSpeak.setField(5,"0");
     }
 
     //Setur status inná skjalinu sem fæst frá thingspeak.com
@@ -92,12 +94,6 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     Serial.println(writeApi);
     Serial.print("Channel er: ");
     Serial.println(channelNumber);
-    if (VALVES_CLOSED){
-     ThingSpeak.setStatus("1");
-    }
-    else{
-     ThingSpeak.setStatus("0");
-    }
 
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
