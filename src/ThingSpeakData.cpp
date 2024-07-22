@@ -9,8 +9,8 @@
 WiFiClient client;
 
 namespace THINGSPEAK {
-int channelNumber = 2546046;
-String writeApi = "";
+int channelNumber = 2596560;
+String writeApi = "ON9DWVHJRVRZG02B";
 int serial_number = 0;
 
 const char* ssid = "HUAWEI_E5785_0B6F";           
@@ -51,15 +51,15 @@ void setup_ThingSpeak(int serialNR){
   Serial.println("Setur upp thingspeak.");
 
   //Fylki sem inniheldur öll API-write keys og Channel Number
-  String APIFylki[7] = {"FE7T0FTS1L2BDTY4", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L"};
+  String APIFylki[7] = {"ON9DWVHJRVRZG02B", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "H1SDZ72WOUCP8K0L", "ON9DWVHJRVRZG02B", "ON9DWVHJRVRZG02B"};
 
   //Seinna meir hægt að bæta við read API ef þess þarf
 
-  int channelFylki[7] = {2574868, 2548253, 2548253, 2548253, 2548253, 2548253, 2548253};
+  int channelFylki[7] = {2596560, 2548253, 2548253, 2548253, 2548253, 2596560, 2596560};
 
   //Gefur tækinu API-write-key og Channel Number
   writeApi = APIFylki[serial_number];
-  channelNumber = channelFylki[serial_number];
+  channelNumber = channelFylki[serial_number]; //channelFylki[serial_number];
 }
 
 //Fall sem segir okkur hvort tölvan er tengd við netið
@@ -94,6 +94,12 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
     Serial.println(writeApi);
     Serial.print("Channel er: ");
     Serial.println(channelNumber);
+    if (VALVES_CLOSED){
+     ThingSpeak.setStatus("1");
+    }
+    else{
+     ThingSpeak.setStatus("0");
+    }
 
     int x = ThingSpeak.writeFields(channelNumber, writeApi.c_str());
     if(x == 200){
@@ -110,19 +116,19 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
   }
 
 
-//Eftirfarandi föll eru eingungis til þess að getað sett eitt field í einu, getur verið þæginlegt til að debugga
-void Koltvioxid(float co2){
+//Eftirfarandi föll eru eingungis til þess að getað sett eitt field í einu, getur verið þæginlegt til að debugga eða nota ef þörf er á
+void Koltvioxid(int channelNumber, float co2){
   if (isConnected() && client.connect(THINGSPEAK_URL,80)) {
-    int x = ThingSpeak.writeField(2546046, 1, co2, writeApi.c_str());
+    int x = ThingSpeak.writeField(channelNumber, 1, co2, writeApi.c_str());
     Serial.println("X: " + String(x));
   } else {
     Serial.print("Nær ekki tengingu til að senda koltvíoxíð.");
   }
 }
 
-void Raki(float raki){
+void Raki(int channelNumber, float raki){
   if (isConnected() && client.connect(THINGSPEAK_URL,80)) {
-    int x =  ThingSpeak.writeField(2546046, 2, raki, writeApi.c_str());
+    int x =  ThingSpeak.writeField(channelNumber, 2, raki, writeApi.c_str());
     Serial.println("X: " + String(x));
   } 
   else {
@@ -130,9 +136,9 @@ void Raki(float raki){
   }
 }
 
-void Hitastig(float hiti){
+void Hitastig(int channelNumber, float hiti){
     if (isConnected() && client.connect(THINGSPEAK_URL,80)){
-      int x = ThingSpeak.writeField(2546046, 3, hiti, writeApi.c_str());
+      int x = ThingSpeak.writeField(channelNumber, 3, hiti, writeApi.c_str());
       Serial.println("X: " + String(x));
     }
     else{
@@ -140,9 +146,9 @@ void Hitastig(float hiti){
     }
 }
 
-void Thristingur(float thrist){
+void Thristingur(int channelNumber, float thrist){
     if (isConnected() && client.connect(THINGSPEAK_URL,80)){
-      int x = ThingSpeak.writeField(2546046, 4, thrist, writeApi.c_str());
+      int x = ThingSpeak.writeField(channelNumber, 4, thrist, writeApi.c_str());
       Serial.println("X: " + String(x));
     }
     else{

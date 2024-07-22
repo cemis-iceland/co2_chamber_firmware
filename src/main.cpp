@@ -326,6 +326,7 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
+  int test = config.serial_number.toInt();
   if(Thingspeak_On) {
 
     // !!það þarf að skoða hvort þett sé að virka rétt!!
