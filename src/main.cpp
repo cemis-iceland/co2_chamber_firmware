@@ -181,10 +181,6 @@ void enterWarmup() {
 void enterPremix() {
 
   log_i("Entering premix");
-  if(Thingspeak_On) {
-    float warmup_time = config.warmup_time;
-    THINGSPEAK::SetupWiFi(warmup_time);
-  }
   board::fan_on();
   std::stringstream ss{""};
   std::string time = timestamp();
@@ -320,11 +316,10 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  int test = config.serial_number.toInt();
+  String test = config.serial_number;
   if(Thingspeak_On) {
-
     // !!það þarf að skoða hvort þett sé að virka rétt!!
-    THINGSPEAK::setup_ThingSpeak(config.serial_number.toInt());
+    THINGSPEAK::setup_ThingSpeak(test.toInt());
   }
 
   // Serial debug logging
@@ -365,7 +360,14 @@ void setup() {
     if (config.chamber_type == "valve") { // TODO: refactor magic string
       delay(config.warmup_time * 1000);
       enterPremix(); // Turn fan on
-      delay(config.premix_time * 1000);
+
+      //Kveikir á wifi einungis þegar premixið er búið með 3/4 af tímanum.
+      delay(config.premix_time * 750);
+      if(Thingspeak_On) {
+        float warmup_time = config.warmup_time;
+        THINGSPEAK::SetupWiFi(warmup_time);
+      }
+      delay(config.premix_time * 250);
       enterValvesClosed(); // Close valves
       VALVES_CLOSED = true;
       delay(config.meas_time * 1000);
