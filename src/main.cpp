@@ -135,7 +135,6 @@ void measure_co2_task(void* parameter) {
     if(Thingspeak_On && VALVES_CLOSED) {
       THINGSPEAK::WriteAll(scd30_meas.co2, hume_1.relative_humidity, temp_1.temperature, pres_1.pressure, VALVES_CLOSED);
     }
-
     vTaskDelay(config.co2_interval * 1000 / portTICK_PERIOD_MS);
   }
 }
@@ -316,10 +315,8 @@ void setup() {
   // Prepare hardware
   board::setup_gpio();
   board::power_on();
-  String test = config.serial_number;
   if(Thingspeak_On) {
-    // !!það þarf að skoða hvort þett sé að virka rétt!!
-    THINGSPEAK::setup_ThingSpeak(test.toInt());
+    THINGSPEAK::setup_ThingSpeak();
   }
 
   // Serial debug logging
