@@ -12,10 +12,12 @@ WiFiClient client;
 //Config con;
 
 namespace THINGSPEAK {
+//Þessar breytur verða allar overwritten seinna
 int channelNumber = 2596560;
 String writeApi = "ON9DWVHJRVRZG02B";
 int serial_number = 0;
 
+//Nafn og password hjá wifi-pung
 const char* ssid = "HUAWEI_E5785_0B6F";           
 const char* password = "Cemis2024";
 
@@ -37,6 +39,7 @@ void SetupWiFi(float warmup) {
   }
 
 
+  //Segir á Serial Monitor hvort að tenging hafi heppnast
   if (WiFi.status() == WL_CONNECTED) {
   // Notify when connected
   Serial.println("");
@@ -47,6 +50,7 @@ void SetupWiFi(float warmup) {
   }
 }
 
+//Setur inn status inn á thingspeak
 void Status(String STATUS) { ThingSpeak.setStatus(STATUS); }
 
 
@@ -62,7 +66,6 @@ String getSerialNumber(){
 //Setup fyrir ThingSpeak aðgerðir. 
 void setup_ThingSpeak(){
   ThingSpeak.begin(client);
-
   //Nær í serial_number úr getSerialNumber og breytir í integer
   serial_number = getSerialNumber().toInt();
 
@@ -78,13 +81,12 @@ void setup_ThingSpeak(){
   channelNumber = channelFylki[serial_number]; //channelFylki[serial_number];
 }
 
-//Fall sem segir okkur hvort tölvan er tengd við netið
+//Fall sem segir okkur hvort tækið sé tengd við netið
 bool isConnected(){
     return WiFi.status() == WL_CONNECTED;
 }
 
 void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSED){
-
   Serial.println("Tengist við ThingSpeak");
   if (isConnected() && client.connect(THINGSPEAK_URL, 80)){
     ThingSpeak.setField(1,co2);

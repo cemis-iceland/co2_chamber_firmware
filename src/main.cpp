@@ -189,6 +189,7 @@ void enterPremix() {
 
 void enterValvesClosed() {
   log_i("Entering valves closed");
+  
   board::close_valves();
   std::stringstream ss{""};
   std::string time = timestamp();
