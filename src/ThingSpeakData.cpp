@@ -103,8 +103,6 @@ void WriteAll(float co2, float raki, float hiti, float thryst, bool VALVES_CLOSE
       ThingSpeak.setField(5,"0");
     }
 
-    //Setur status inná skjalinu sem fæst frá thingspeak.com
-
     //Fyrir debug
     Serial.print("Serial Number er: ");
     Serial.println(serial_number);
